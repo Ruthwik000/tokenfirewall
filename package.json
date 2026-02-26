@@ -1,0 +1,46 @@
+{
+  "name": "tokenfirewall",
+  "version": "1.0.1",
+  "description": "Scalable, adapter-driven LLM cost enforcement middleware for Node.js with model discovery and context intelligence",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "llm",
+    "cost",
+    "budget",
+    "openai",
+    "anthropic",
+    "gemini",
+    "grok",
+    "middleware",
+    "token-tracking",
+    "cost-control",
+    "model-discovery"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ruthwik000/tokenfirewall.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Ruthwik000/tokenfirewall/issues"
+  },
+  "homepage": "https://github.com/Ruthwik000/tokenfirewall#readme",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

@@ -1,0 +1,28 @@
+# Source files (only publish dist/)
+src/
+tsconfig.json
+
+# Development files
+examples/
+*.log
+*.tgz
+
+# Test files
+test/
+*.test.js
+*.spec.js
+
+# Documentation (keep only README and LICENSE)
+docs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
