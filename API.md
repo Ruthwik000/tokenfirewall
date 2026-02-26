@@ -423,4 +423,4 @@ tokenfirewall automatically logs structured JSON for each LLM call:
 
 API Version: 1.0.0
 
-Last Updated: 2024
+Last Updated: 2026
