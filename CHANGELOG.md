@@ -5,6 +5,35 @@ All notable changes to tokenfirewall will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-02-27
+
+### Fixed
+
+#### Critical Pricing Corrections
+All model pricing has been corrected to match official provider documentation (verified February 27, 2026):
+
+**OpenAI (from platform.openai.com):**
+- GPT-5: $1.25/$10.00 (was $5.00/$15.00)
+- GPT-5-mini: $0.25/$2.00 (was $1.50/$5.00)
+- GPT-4.1: $2.00/$8.00 (was $3.00/$12.00)
+- o1: $15.00/$60.00 (was $6.00/$18.00)
+
+**Anthropic (from docs.anthropic.com):**
+- Claude Opus 4.5: $5.00/$25.00 (was $17.00/$85.00)
+- Claude Sonnet 4.5: $3.00/$15.00 (was $4.00/$20.00)
+- Claude Haiku 4.5: $1.00/$5.00 (was $1.20/$6.00)
+
+**Gemini (from cloud.google.com):**
+- Gemini 3 Pro: $2.00/$12.00 (was $3.50/$14.00)
+- Gemini 3 Flash: $0.50/$3.00 (was $0.35/$1.50)
+- Gemini 2.5 Pro: $1.25/$10.00 (was $2.50/$10.00)
+- Gemini 2.5 Flash: $0.30/$2.50 (was $0.30/$1.20)
+
+### Removed
+- "Nano Banana" model (not an official Google model name)
+
+---
+
 ## [2.0.0] - 2026-02-27
 
 ### Major Release - Production Ready
