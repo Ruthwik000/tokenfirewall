@@ -12,14 +12,14 @@ TokenFirewall is a production-ready middleware that automatically tracks and enf
 
 ### Key Features
 
-- 🛡️ **Automatic Budget Enforcement** - Block or warn when spending limits are exceeded
-- 💰 **Real-time Cost Tracking** - Automatic calculation based on actual token usage
-- 🌐 **Multi-Provider Support** - Works with OpenAI, Anthropic, Gemini, Grok, Kimi, and custom providers
-- 📊 **Model Discovery** - List available models with context limits and pricing
-- 💾 **Budget Persistence** - Save and restore budget state across restarts
-- 🔒 **Zero Configuration** - Works out-of-the-box with sensible defaults
-- 📈 **Production Ready** - Comprehensive error handling and validation
-- 🎯 **TypeScript Native** - Full type definitions included
+-  **Automatic Budget Enforcement** - Block or warn when spending limits are exceeded
+-  **Real-time Cost Tracking** - Automatic calculation based on actual token usage
+-  **Multi-Provider Support** - Works with OpenAI, Anthropic, Gemini, Grok, Kimi, and custom providers
+-  **Model Discovery** - List available models with context limits and pricing
+-  **Budget Persistence** - Save and restore budget state across restarts
+-  **Zero Configuration** - Works out-of-the-box with sensible defaults
+- **Production Ready** - Comprehensive error handling and validation
+-  **TypeScript Native** - Full type definitions included
 
 ---
 
