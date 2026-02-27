@@ -226,5 +226,5 @@ export KIMI_API_KEY="..."
 ## Need Help?
 
 - See main README.md for full documentation
-- Check API.md for complete API reference
-- Review CONTRIBUTING.md for development guidelines
+- Open an issue: https://github.com/Ruthwik000/tokenfirewall/issues
+- Check CHANGELOG.md for version history

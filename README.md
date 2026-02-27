@@ -434,22 +434,25 @@ TokenFirewall includes built-in support for:
 ### Pricing (Per 1M Tokens)
 
 **OpenAI:**
-- GPT-5: $5.00 / $15.00
-- GPT-5-mini: $1.50 / $5.00
-- GPT-4.1: $3.00 / $12.00
+- GPT-5: $1.25 / $10.00
+- GPT-5-mini: $0.25 / $2.00
+- GPT-4.1: $2.00 / $8.00
 - GPT-4o: $2.50 / $10.00
-- o1: $6.00 / $18.00
+- o1: $15.00 / $60.00
 
 **Anthropic:**
-- Claude Opus 4.5: $17.00 / $85.00
-- Claude Sonnet 4.5: $4.00 / $20.00
-- Claude Haiku 4.5: $1.20 / $6.00
+- Claude Opus 4.5: $5.00 / $25.00
+- Claude Sonnet 4.5: $3.00 / $15.00
+- Claude Haiku 4.5: $1.00 / $5.00
 
 **Gemini:**
-- Gemini 3 Pro: $3.50 / $14.00
-- Gemini 3 Flash: $0.35 / $1.50
-- Gemini 2.5 Pro: $2.50 / $10.00
-- Nano Banana: $0.05 / $0.20
+- Gemini 3 Pro: $2.00 / $12.00
+- Gemini 3 Flash: $0.50 / $3.00
+- Gemini 2.5 Pro: $1.25 / $10.00
+- Gemini 2.5 Flash: $0.30 / $2.50
+- Gemini 2.5 Flash Lite: $0.10 / $0.40
+
+*Pricing verified as of February 27, 2026. Standard tier, ≤200K input tokens.*
 
 ### Context Limits
 
