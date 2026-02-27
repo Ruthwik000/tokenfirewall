@@ -101,6 +101,38 @@ node examples/5-model-discovery.js
 
 ---
 
+### 6. Intelligent Routing (`6-intelligent-routing.js`)
+**What it shows:**
+- Automatic retry on API failures
+- Model switching with fallback strategy
+- Context-based routing (upgrade on overflow)
+- Cost-based routing (switch to cheaper model)
+
+**Best for:** Production resilience, cost optimization, handling rate limits
+
+**Run:**
+```bash
+node examples/6-intelligent-routing.js
+```
+
+---
+
+### 7. Dynamic Model Registration (`7-dynamic-models.js`)
+**What it shows:**
+- Dynamically registering models from API discovery
+- Bulk model registration with pricing and context limits
+- Using router with dynamically registered models
+- Recommended patterns for model discovery
+
+**Best for:** Custom providers, API-specific models, dynamic model lists
+
+**Run:**
+```bash
+node examples/7-dynamic-models.js
+```
+
+---
+
 ## Common Patterns
 
 ### Pattern 1: Block Mode (Strict Budget)

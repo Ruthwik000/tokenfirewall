@@ -1,4 +1,5 @@
 import { NormalizedUsage, CostBreakdown } from "./core/types";
+import { RouterEvent } from "./router/types";
 
 /**
  * Structured logger for LLM usage and costs
@@ -26,6 +27,19 @@ export class Logger {
           total: cost.totalCost.toFixed(6),
         },
       })
+    );
+  }
+
+  /**
+   * Log router event (model switching)
+   */
+  public logRouterEvent(event: RouterEvent): void {
+    console.log(
+      `[TOKENFIREWALL ROUTER]\n` +
+      `Original: ${event.originalModel}\n` +
+      `Switched: ${event.nextModel}\n` +
+      `Reason: ${event.reason}\n` +
+      `Attempt: ${event.attempt}/${event.maxRetries}`
     );
   }
 }

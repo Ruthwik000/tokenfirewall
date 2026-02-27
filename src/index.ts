@@ -2,12 +2,15 @@ import { BudgetGuardOptions, ProviderAdapter, ModelPricing, BudgetStatus } from 
 import { BudgetManager } from "./core/budgetManager";
 import { pricingRegistry } from "./core/pricingRegistry";
 import { adapterRegistry } from "./registry";
-import { patchGlobalFetch, setBudgetManager } from "./interceptors/fetchInterceptor";
+import { patchGlobalFetch, setBudgetManager, setModelRouter } from "./interceptors/fetchInterceptor";
 import { patchProvider } from "./interceptors/sdkInterceptor";
 import { listAvailableModels, ModelInfo, ListModelsOptions } from "./introspection/modelLister";
 import { contextRegistry } from "./introspection/contextRegistry";
+import { ModelRouter } from "./router/modelRouter";
+import { ModelRouterOptions } from "./router/types";
 
 let globalBudgetManager: BudgetManager | null = null;
+let globalModelRouter: ModelRouter | null = null;
 
 /**
  * Create and configure a budget guard
@@ -53,23 +56,23 @@ export function registerAdapter(adapter: ProviderAdapter): void {
  */
 export function registerPricing(provider: string, model: string, pricing: ModelPricing): void {
   // Validate inputs
-  if (!provider || typeof provider !== 'string') {
+  if (!provider || typeof provider !== 'string' || provider.trim() === '') {
     throw new Error('TokenFirewall: Provider must be a non-empty string');
   }
-  if (!model || typeof model !== 'string') {
+  if (!model || typeof model !== 'string' || model.trim() === '') {
     throw new Error('TokenFirewall: Model must be a non-empty string');
   }
   if (!pricing || typeof pricing !== 'object') {
     throw new Error('TokenFirewall: Pricing must be an object');
   }
-  if (typeof pricing.input !== 'number' || pricing.input < 0 || !isFinite(pricing.input)) {
-    throw new Error('TokenFirewall: Pricing input must be a non-negative number');
+  if (typeof pricing.input !== 'number' || pricing.input < 0 || !isFinite(pricing.input) || isNaN(pricing.input)) {
+    throw new Error('TokenFirewall: Pricing input must be a non-negative finite number');
   }
-  if (typeof pricing.output !== 'number' || pricing.output < 0 || !isFinite(pricing.output)) {
-    throw new Error('TokenFirewall: Pricing output must be a non-negative number');
+  if (typeof pricing.output !== 'number' || pricing.output < 0 || !isFinite(pricing.output) || isNaN(pricing.output)) {
+    throw new Error('TokenFirewall: Pricing output must be a non-negative finite number');
   }
 
-  pricingRegistry.register(provider, model, pricing);
+  pricingRegistry.register(provider.toLowerCase(), model, pricing);
 }
 
 /**
@@ -80,17 +83,56 @@ export function registerPricing(provider: string, model: string, pricing: ModelP
  */
 export function registerContextLimit(provider: string, model: string, contextLimit: number): void {
   // Validate inputs
-  if (!provider || typeof provider !== 'string') {
+  if (!provider || typeof provider !== 'string' || provider.trim() === '') {
     throw new Error('TokenFirewall: Provider must be a non-empty string');
   }
-  if (!model || typeof model !== 'string') {
+  if (!model || typeof model !== 'string' || model.trim() === '') {
     throw new Error('TokenFirewall: Model must be a non-empty string');
   }
-  if (typeof contextLimit !== 'number' || contextLimit <= 0 || !isFinite(contextLimit)) {
-    throw new Error('TokenFirewall: Context limit must be a positive number');
+  if (typeof contextLimit !== 'number' || contextLimit <= 0 || !isFinite(contextLimit) || isNaN(contextLimit)) {
+    throw new Error('TokenFirewall: Context limit must be a positive finite number');
   }
 
-  contextRegistry.register(provider, model, { tokens: contextLimit });
+  contextRegistry.register(provider.toLowerCase(), model, { tokens: contextLimit });
+}
+
+/**
+ * Register multiple models for a provider at once
+ * Useful for dynamic model discovery or custom provider setup
+ * @param provider - Provider name
+ * @param models - Array of model configurations
+ */
+export function registerModels(
+  provider: string,
+  models: Array<{ name: string; contextLimit?: number; pricing?: ModelPricing }>
+): void {
+  // Validate inputs
+  if (!provider || typeof provider !== 'string' || provider.trim() === '') {
+    throw new Error('TokenFirewall: Provider must be a non-empty string');
+  }
+  if (!Array.isArray(models) || models.length === 0) {
+    throw new Error('TokenFirewall: Models must be a non-empty array');
+  }
+
+  // Normalize provider name to lowercase
+  const normalizedProvider = provider.toLowerCase();
+
+  // Register each model
+  for (const model of models) {
+    if (!model.name || typeof model.name !== 'string' || model.name.trim() === '') {
+      throw new Error('TokenFirewall: Each model must have a valid name');
+    }
+
+    // Register context limit if provided
+    if (model.contextLimit !== undefined) {
+      registerContextLimit(normalizedProvider, model.name, model.contextLimit);
+    }
+
+    // Register pricing if provided
+    if (model.pricing !== undefined) {
+      registerPricing(normalizedProvider, model.name, model.pricing);
+    }
+  }
 }
 
 /**
@@ -131,6 +173,26 @@ export function importBudgetState(state: { totalSpent: number }): void {
 }
 
 /**
+ * Create and configure a model router for automatic retries and fallbacks
+ * @param options - Router configuration options
+ * @returns Model router instance
+ */
+export function createModelRouter(options: ModelRouterOptions): ModelRouter {
+  const router = new ModelRouter(options);
+  globalModelRouter = router;
+  setModelRouter(router);
+  return router;
+}
+
+/**
+ * Disable model router
+ */
+export function disableModelRouter(): void {
+  globalModelRouter = null;
+  setModelRouter(null);
+}
+
+/**
  * List available models for a provider with context limits and budget usage
  * @param options - Provider configuration and options
  * @returns Array of model information
@@ -159,3 +221,21 @@ export type {
 } from "./core/types";
 
 export type { ModelInfo as ModelInfoType, ListModelsOptions as ListModelsOptionsType } from "./introspection/modelLister";
+
+export type {
+  ModelRouterOptions,
+  RoutingStrategy,
+  FailureType,
+  FailureContext,
+  RoutingDecision,
+  RouterEvent
+} from "./router/types";
+
+/**
+ * Model configuration for bulk registration
+ */
+export interface ModelConfig {
+  name: string;
+  contextLimit?: number;
+  pricing?: ModelPricing;
+}

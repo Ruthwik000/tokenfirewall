@@ -1,0 +1,107 @@
+================================================================================
+TokenFirewall v2.0.0 - Release Notes
+================================================================================
+
+Release Date: February 27, 2026
+Package Size: 25.5 kB (packed) / 108.1 kB (unpacked)
+Total Files: 45
+
+================================================================================
+MAJOR FEATURES
+================================================================================
+
+1. INTELLIGENT MODEL ROUTER
+   - Automatic retry and model switching on failures
+   - Three routing strategies: fallback, context, cost
+   - Configurable retry limits with safety guards
+   - Prevention of infinite loops and circular retries
+   - Comprehensive router event logging
+
+2. DYNAMIC MODEL REGISTRATION
+   - registerModels() - Bulk register models at runtime
+   - Runtime pricing and context limit registration
+   - Support for custom providers
+   - Automatic integration with router strategies
+
+3. COMPREHENSIVE MODEL SUPPORT (40+ Models)
+   - OpenAI: GPT-5, GPT-5-mini, GPT-4.1, GPT-4o, o1, gpt-image-1
+   - Anthropic: Claude 4.5 (Opus, Sonnet, Haiku), Claude 4, Claude 3.5
+   - Gemini: Gemini 3, 3.1, 2.5, Nano Banana, Image models
+   - Grok, Kimi, Meta, Mistral, Cohere support
+
+4. ACCURATE PRICING
+   - All pricing updated to current market rates (per 1M tokens)
+   - OpenAI: $0.15 - $18.00
+   - Anthropic: $1.20 - $85.00
+   - Gemini: $0.05 - $16.00
+
+5. PRODUCTION-GRADE RELIABILITY
+   - Case-insensitive provider lookups
+   - Comprehensive input validation (NaN, Infinity, negative values)
+   - Request object handling with header preservation
+   - Streaming request detection and fallback
+   - Edge case handling for concurrent operations
+
+================================================================================
+BREAKING CHANGES
+================================================================================
+
+None - Fully backward compatible with v1.x
+
+================================================================================
+VERIFICATION STATUS
+================================================================================
+
+✅ Build: Successful (TypeScript compilation)
+✅ Tests: 10/10 passed
+✅ Package Structure: Verified
+✅ TypeScript Definitions: Complete
+✅ Examples: 7 working examples included
+✅ Documentation: README, CHANGELOG, LICENSE
+
+================================================================================
+NPM PUBLISH CHECKLIST
+================================================================================
+
+✅ Version updated to 2.0.0 in package.json
+✅ CHANGELOG.md updated with v2.0.0 release notes
+✅ README.md updated with new features and pricing
+✅ Build successful (npm run build)
+✅ All tests passing (10/10)
+✅ Package structure verified (npm pack --dry-run)
+✅ .npmignore configured correctly
+✅ TypeScript definitions included
+✅ Examples use correct import paths
+
+================================================================================
+PUBLISH COMMANDS
+================================================================================
+
+# Dry run (verify package contents)
+npm pack --dry-run
+
+# Publish to npm
+npm publish
+
+# Publish with tag (if needed)
+npm publish --tag latest
+
+================================================================================
+POST-PUBLISH VERIFICATION
+================================================================================
+
+1. Install from npm: npm install tokenfirewall
+2. Test basic usage: node examples/1-basic-usage.js
+3. Test router: node examples/6-intelligent-routing.js
+4. Test dynamic models: node examples/7-dynamic-models.js
+5. Verify TypeScript types work in IDE
+
+================================================================================
+SUPPORT
+================================================================================
+
+- GitHub: https://github.com/Ruthwik000/tokenfirewall
+- npm: https://www.npmjs.com/package/tokenfirewall
+- Issues: https://github.com/Ruthwik000/tokenfirewall/issues
+
+================================================================================

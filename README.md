@@ -1,6 +1,6 @@
 # TokenFirewall
 
-> Enterprise-grade LLM cost enforcement middleware for Node.js with automatic budget protection, multi-provider support, and intelligent cost tracking.
+Enterprise-grade LLM cost enforcement middleware for Node.js with automatic budget protection, intelligent model routing, and comprehensive multi-provider support.
 
 [![npm version](https://img.shields.io/npm/v/tokenfirewall.svg?style=flat-square)](https://www.npmjs.com/package/tokenfirewall)
 [![npm downloads](https://img.shields.io/npm/dm/tokenfirewall.svg?style=flat-square)](https://www.npmjs.com/package/tokenfirewall)
@@ -9,18 +9,25 @@
 
 ## Overview
 
-TokenFirewall is a production-ready middleware that automatically tracks and enforces budget limits for Large Language Model (LLM) API calls. It provides transparent cost monitoring, prevents budget overruns, and supports multiple providers through a unified interface.
+TokenFirewall is a production-ready middleware that automatically tracks and enforces budget limits for Large Language Model (LLM) API calls. It provides transparent cost monitoring, prevents budget overruns, intelligent model routing with automatic failover, and supports multiple providers through a unified interface.
 
 ### Key Features
 
--  **Automatic Budget Enforcement** - Block or warn when spending limits are exceeded
--  **Real-time Cost Tracking** - Automatic calculation based on actual token usage
--  **Multi-Provider Support** - Works with OpenAI, Anthropic, Gemini, Grok, Kimi, and custom providers
--  **Model Discovery** - List available models with context limits and pricing
--  **Budget Persistence** - Save and restore budget state across restarts
--  **Zero Configuration** - Works out-of-the-box with sensible defaults
-- **Production Ready** - Comprehensive error handling and validation
--  **TypeScript Native** - Full type definitions included
+- **Never Exceed Your Budget** - Automatically blocks API calls when spending limits are reached, preventing surprise bills
+- **Zero Code Changes Required** - Drop-in middleware that works with any LLM API without modifying your existing code
+- **Automatic Failover** - Intelligent router switches to backup models when primary fails, keeping your app running
+- **Real-time Cost Tracking** - See exactly how much each API call costs based on actual token usage
+- **Multi-Provider Support** - Works with OpenAI, Anthropic, Gemini, Grok, Kimi, and any custom LLM provider
+- **Custom Model Support** - Register your own models with custom pricing and context limits at runtime
+- **Production Ready** - Battle-tested with comprehensive error handling and edge case coverage
+- **TypeScript Native** - Full type safety with included definitions
+
+### What's New in v2.0.0
+
+- **Intelligent Router** - Automatic failover to backup models when API calls fail
+- **40+ Latest Models** - GPT-5, Claude 4.5, Gemini 3, with accurate 2026 pricing
+- **Dynamic Registration** - Add custom models and pricing at runtime
+- **Production Hardened** - Comprehensive validation, error handling, and edge case coverage
 
 ---
 
@@ -30,18 +37,13 @@ TokenFirewall is a production-ready middleware that automatically tracks and enf
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
 - [API Reference](#api-reference)
-  - [Budget Management](#budget-management)
-  - [Interception](#interception)
-  - [Model Discovery](#model-discovery)
-  - [Custom Providers](#custom-providers)
-  - [Budget Persistence](#budget-persistence)
+- [Intelligent Model Router](#intelligent-model-router)
+- [Dynamic Model Registration](#dynamic-model-registration)
 - [Supported Providers](#supported-providers)
-- [Use Cases](#use-cases)
 - [Examples](#examples)
 - [TypeScript Support](#typescript-support)
 - [Error Handling](#error-handling)
 - [Best Practices](#best-practices)
-- [Contributing](#contributing)
 - [License](#license)
 
 ---
@@ -51,8 +53,6 @@ TokenFirewall is a production-ready middleware that automatically tracks and enf
 ```bash
 npm install tokenfirewall
 ```
-
-**📦 npm Package:** https://www.npmjs.com/package/tokenfirewall
 
 **Requirements:**
 - Node.js >= 16.0.0
@@ -74,7 +74,7 @@ createBudgetGuard({
 // Step 2: Patch global fetch
 patchGlobalFetch();
 
-// Step 3: Use any LLM API normally - tokenfirewall handles the rest
+// Step 3: Use any LLM API normally
 const response = await fetch("https://api.openai.com/v1/chat/completions", {
   method: "POST",
   headers: {
@@ -96,7 +96,7 @@ const response = await fetch("https://api.openai.com/v1/chat/completions", {
 
 ### Budget Guard
 
-The Budget Guard is the core component that tracks spending and enforces limits. It operates in two modes:
+The Budget Guard tracks spending and enforces limits in two modes:
 
 - **Block Mode** (`mode: "block"`): Throws an error when budget is exceeded, preventing the API call
 - **Warn Mode** (`mode: "warn"`): Logs a warning but allows the API call to proceed
@@ -129,17 +129,12 @@ Creates and configures a budget guard instance.
 
 **Parameters:**
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `options` | `BudgetGuardOptions` | Yes | Budget configuration object |
-| `options.monthlyLimit` | `number` | Yes | Maximum spending limit in USD |
-| `options.mode` | `"block" \| "warn"` | No | Enforcement mode (default: `"block"`) |
-
-**Returns:** `BudgetManager` - The budget manager instance
-
-**Throws:**
-- `Error` if `monthlyLimit` is not a positive number
-- `Error` if `mode` is not "block" or "warn"
+```typescript
+interface BudgetGuardOptions {
+  monthlyLimit: number;           // Maximum spending limit in USD
+  mode?: "block" | "warn";        // Enforcement mode (default: "block")
+}
+```
 
 **Example:**
 
@@ -147,22 +142,17 @@ Creates and configures a budget guard instance.
 const { createBudgetGuard } = require("tokenfirewall");
 
 // Block mode - strict enforcement
-const guard = createBudgetGuard({
+createBudgetGuard({
   monthlyLimit: 100,
   mode: "block"
 });
 
 // Warn mode - soft limits
-const guard = createBudgetGuard({
+createBudgetGuard({
   monthlyLimit: 500,
   mode: "warn"
 });
 ```
-
-**Notes:**
-- Calling `createBudgetGuard()` multiple times will replace the existing guard
-- A warning is logged when overwriting an existing guard
-- The guard is global and applies to all subsequent API calls
 
 ---
 
@@ -170,9 +160,7 @@ const guard = createBudgetGuard({
 
 Retrieves the current budget status and usage statistics.
 
-**Parameters:** None
-
-**Returns:** `BudgetStatus | null`
+**Returns:**
 
 ```typescript
 interface BudgetStatus {
@@ -189,57 +177,44 @@ interface BudgetStatus {
 const { getBudgetStatus } = require("tokenfirewall");
 
 const status = getBudgetStatus();
-
 if (status) {
   console.log(`Spent: $${status.totalSpent.toFixed(2)}`);
   console.log(`Remaining: $${status.remaining.toFixed(2)}`);
   console.log(`Usage: ${status.percentageUsed.toFixed(1)}%`);
-  
-  // Alert if over 80%
-  if (status.percentageUsed > 80) {
-    console.warn("⚠️ Budget usage is high!");
-  }
 }
 ```
-
-**Returns `null` if:**
-- No budget guard has been created
-- Budget guard was not initialized
 
 ---
 
 #### `resetBudget()`
 
-Resets the budget tracking to zero, clearing all accumulated costs.
-
-**Parameters:** None
-
-**Returns:** `void`
-
-**Example:**
+Resets the budget tracking to zero.
 
 ```javascript
-const { resetBudget, getBudgetStatus } = require("tokenfirewall");
+const { resetBudget } = require("tokenfirewall");
 
 // Reset at the start of each month
-function monthlyReset() {
-  resetBudget();
-  console.log("Budget reset for new month");
-  
-  const status = getBudgetStatus();
-  console.log(`New budget: $${status.limit}`);
-}
-
-// Schedule monthly reset
-const cron = require("node-cron");
-cron.schedule("0 0 1 * *", monthlyReset); // First day of month
+resetBudget();
 ```
 
-**Use Cases:**
-- Monthly budget resets
-- Testing and development
-- Per-session budgets
-- Tenant-specific resets
+---
+
+#### `exportBudgetState()` / `importBudgetState(state)`
+
+Save and restore budget state for persistence.
+
+```javascript
+const { exportBudgetState, importBudgetState } = require("tokenfirewall");
+const fs = require("fs");
+
+// Export state
+const state = exportBudgetState();
+fs.writeFileSync("budget.json", JSON.stringify(state));
+
+// Import state
+const savedState = JSON.parse(fs.readFileSync("budget.json"));
+importBudgetState(savedState);
+```
 
 ---
 
@@ -249,91 +224,13 @@ cron.schedule("0 0 1 * *", monthlyReset); // First day of month
 
 Patches the global `fetch` function to intercept and track LLM API calls.
 
-**Parameters:** None
-
-**Returns:** `void`
-
-**Example:**
-
 ```javascript
 const { patchGlobalFetch } = require("tokenfirewall");
 
-// Patch once at application startup
 patchGlobalFetch();
 
 // All subsequent fetch calls are intercepted
-await fetch("https://api.openai.com/v1/chat/completions", { /* ... */ });
-await fetch("https://api.anthropic.com/v1/messages", { /* ... */ });
 ```
-
-**Behavior:**
-- Intercepts all `fetch` calls globally
-- Only processes LLM API responses (non-LLM calls are ignored)
-- Automatically detects provider from response format
-- Calculates costs and tracks against budget
-- Logs usage information to console
-- Can be called multiple times safely (idempotent)
-
-**Important Notes:**
-- Must be called AFTER `createBudgetGuard()`
-- Works with official SDKs that use `fetch` internally
-- Does not affect non-LLM HTTP requests
-- Minimal performance overhead
-
----
-
-#### `unpatchGlobalFetch()`
-
-Restores the original `fetch` function, disabling interception.
-
-**Parameters:** None
-
-**Returns:** `void`
-
-**Example:**
-
-```javascript
-const { patchGlobalFetch, unpatchGlobalFetch } = require("tokenfirewall");
-
-// Enable tracking
-patchGlobalFetch();
-
-// ... make some API calls ...
-
-// Disable tracking
-unpatchGlobalFetch();
-
-// Subsequent calls are not tracked
-```
-
-**Use Cases:**
-- Temporarily disable tracking
-- Testing specific scenarios
-- Cleanup in test suites
-
----
-
-#### `patchProvider(providerName)`
-
-Patches a specific provider SDK (currently placeholder - most providers work via fetch interception).
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `providerName` | `string` | Yes | Provider name ("openai", "anthropic", etc.) |
-
-**Returns:** `void`
-
-**Example:**
-
-```javascript
-const { patchProvider } = require("tokenfirewall");
-
-patchProvider("openai");
-```
-
-**Note:** Most providers work automatically with `patchGlobalFetch()`. This function is reserved for future provider-specific integrations.
 
 ---
 
@@ -345,21 +242,12 @@ Lists available models from a provider with context limits and budget informatio
 
 **Parameters:**
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `options` | `ListModelsOptions` | Yes | Discovery options |
-| `options.provider` | `string` | Yes | Provider name ("openai", "gemini", "grok", "kimi") |
-| `options.apiKey` | `string` | Yes | Provider API key |
-| `options.baseURL` | `string` | No | Custom API endpoint URL |
-| `options.includeBudgetUsage` | `boolean` | No | Include current budget usage % (default: false) |
-
-**Returns:** `Promise<ModelInfo[]>`
-
 ```typescript
-interface ModelInfo {
-  model: string;                    // Model identifier
-  contextLimit?: number;            // Context window size in tokens
-  budgetUsagePercentage?: number;   // Current budget usage (if requested)
+interface ListModelsOptions {
+  provider: string;                  // Provider name
+  apiKey: string;                    // Provider API key
+  baseURL?: string;                  // Custom API endpoint
+  includeBudgetUsage?: boolean;      // Include budget usage %
 }
 ```
 
@@ -368,7 +256,6 @@ interface ModelInfo {
 ```javascript
 const { listModels } = require("tokenfirewall");
 
-// Discover OpenAI models
 const models = await listModels({
   provider: "openai",
   apiKey: process.env.OPENAI_API_KEY,
@@ -376,304 +263,155 @@ const models = await listModels({
 });
 
 models.forEach(model => {
-  console.log(`Model: ${model.model}`);
-  if (model.contextLimit) {
-    console.log(`  Context: ${model.contextLimit.toLocaleString()} tokens`);
-  }
-  if (model.budgetUsagePercentage !== undefined) {
-    console.log(`  Budget Used: ${model.budgetUsagePercentage.toFixed(2)}%`);
-  }
-});
-
-// Find models with large context windows
-const largeContext = models.filter(m => m.contextLimit && m.contextLimit > 100000);
-```
-
-**Supported Providers:**
-- `"openai"` - Fetches from OpenAI API
-- `"gemini"` - Fetches from Google Gemini API
-- `"grok"` - Fetches from X.AI API
-- `"kimi"` - Fetches from Moonshot AI API
-- `"anthropic"` - Returns static list (no API endpoint available)
-
-**Error Handling:**
-- Returns empty array if API call fails
-- Logs warning on errors
-- Has 10-second timeout to prevent hanging
-
----
-
-#### `listAvailableModels(options)`
-
-Lower-level model discovery function with manual budget manager injection.
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `options` | `ListModelsOptions` | Yes | Discovery options (same as `listModels`) |
-| `options.budgetManager` | `BudgetManager` | No | Manual budget manager instance |
-
-**Returns:** `Promise<ModelInfo[]>`
-
-**Example:**
-
-```javascript
-const { listAvailableModels, createBudgetGuard } = require("tokenfirewall");
-
-const manager = createBudgetGuard({ monthlyLimit: 100, mode: "warn" });
-
-const models = await listAvailableModels({
-  provider: "openai",
-  apiKey: process.env.OPENAI_API_KEY,
-  budgetManager: manager,
-  includeBudgetUsage: true
+  console.log(`${model.model}: ${model.contextLimit} tokens`);
 });
 ```
 
-**Note:** Use `listModels()` instead - it automatically passes the global budget manager.
-
 ---
 
-### Custom Providers
+## Intelligent Model Router
 
-#### `registerAdapter(adapter)`
+The Model Router provides automatic retry and model switching on failures.
 
-Registers a custom provider adapter for tracking non-standard LLM APIs.
+### `createModelRouter(options)`
+
+Creates and configures an intelligent model router.
 
 **Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `adapter` | `ProviderAdapter` | Yes | Custom adapter implementation |
 
 ```typescript
-interface ProviderAdapter {
-  name: string;                                    // Unique provider name
-  detect: (response: unknown) => boolean;          // Detect if response is from this provider
-  normalize: (response: unknown, request?: unknown) => NormalizedUsage;  // Extract token usage
-}
-
-interface NormalizedUsage {
-  provider: string;      // Provider name
-  model: string;         // Model identifier
-  inputTokens: number;   // Input/prompt tokens
-  outputTokens: number;  // Output/completion tokens
-  totalTokens: number;   // Total tokens
+interface ModelRouterOptions {
+  strategy: "fallback" | "context" | "cost";  // Routing strategy
+  fallbackMap?: Record<string, string[]>;     // Fallback model map
+  maxRetries?: number;                        // Max retry attempts (default: 1)
 }
 ```
 
 **Example:**
 
 ```javascript
-const { registerAdapter } = require("tokenfirewall");
+const { createModelRouter, patchGlobalFetch } = require("tokenfirewall");
 
-// Register Ollama (self-hosted) adapter
-registerAdapter({
-  name: "ollama",
-  
-  detect: (response) => {
-    return response && 
-           typeof response === "object" && 
-           response.model && 
-           response.prompt_eval_count !== undefined;
+// Fallback strategy - use predefined fallback models
+createModelRouter({
+  strategy: "fallback",
+  fallbackMap: {
+    "gpt-4o": ["gpt-4o-mini", "gpt-3.5-turbo"],
+    "claude-3-5-sonnet-20241022": ["claude-3-5-haiku-20241022"]
   },
-  
-  normalize: (response) => {
-    return {
-      provider: "ollama",
-      model: response.model,
-      inputTokens: response.prompt_eval_count || 0,
-      outputTokens: response.eval_count || 0,
-      totalTokens: (response.prompt_eval_count || 0) + (response.eval_count || 0)
-    };
-  }
+  maxRetries: 2
 });
 
-// Now Ollama calls are tracked
-const response = await fetch("http://localhost:11434/api/generate", {
-  method: "POST",
-  body: JSON.stringify({ model: "llama3.2", prompt: "Hello" })
-});
+patchGlobalFetch();
+
+// API calls will automatically retry with fallback models on failure
 ```
 
-**Validation:**
-- Adapter name must be a non-empty string
-- `detect()` must return boolean
-- `normalize()` must return valid `NormalizedUsage` object
-- Adapters are checked in registration order (first match wins)
+### Routing Strategies
+
+**1. Fallback Strategy** - Uses predefined fallback map
+- Tries models in order from fallbackMap
+- Best for: Known model preferences, production resilience
+
+**2. Context Strategy** - Upgrades to larger context window
+- Only triggers on context overflow errors
+- Selects model with larger context from same provider
+- Best for: Handling variable input sizes
+
+**3. Cost Strategy** - Switches to cheaper model
+- Selects cheaper model from same provider
+- Best for: Cost optimization, rate limit handling
+
+### Error Detection
+
+The router automatically detects and classifies failures:
+- `rate_limit` - HTTP 429 or rate limit errors
+- `context_overflow` - Context length exceeded errors
+- `model_unavailable` - HTTP 404 or model not found
+- `access_denied` - HTTP 403 or unauthorized
+- `unknown` - Other errors
+
+### `disableModelRouter()`
+
+Disables the model router.
+
+```javascript
+const { disableModelRouter } = require("tokenfirewall");
+
+disableModelRouter();
+```
 
 ---
 
-#### `registerPricing(provider, model, pricing)`
+## Dynamic Model Registration
 
-Registers custom pricing for a provider and model.
+Register models with pricing and context limits at runtime.
+
+### `registerModels(provider, models)`
+
+Bulk register models for a provider.
 
 **Parameters:**
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `provider` | `string` | Yes | Provider name |
-| `model` | `string` | Yes | Model identifier |
-| `pricing` | `ModelPricing` | Yes | Pricing configuration |
-
 ```typescript
-interface ModelPricing {
-  input: number;   // Cost per 1M input tokens (USD)
-  output: number;  // Cost per 1M output tokens (USD)
+interface ModelConfig {
+  name: string;                    // Model identifier
+  contextLimit?: number;           // Context window size in tokens
+  pricing?: {                      // Pricing per 1M tokens (USD)
+    input: number;
+    output: number;
+  };
 }
 ```
 
 **Example:**
+
+```javascript
+const { registerModels, createModelRouter } = require("tokenfirewall");
+
+// Register custom models
+registerModels("my-provider", [
+  {
+    name: "my-large-model",
+    contextLimit: 200000,
+    pricing: { input: 5.0, output: 15.0 }
+  },
+  {
+    name: "my-small-model",
+    contextLimit: 50000,
+    pricing: { input: 1.0, output: 3.0 }
+  }
+]);
+
+// Router will use dynamically registered models
+createModelRouter({
+  strategy: "cost",
+  maxRetries: 2
+});
+```
+
+### `registerPricing(provider, model, pricing)`
+
+Register custom pricing for a specific model.
 
 ```javascript
 const { registerPricing } = require("tokenfirewall");
 
-// Register pricing for custom model
-registerPricing("ollama", "llama3.2", {
-  input: 0.0,   // Free (self-hosted)
-  output: 0.0
-});
-
-// Register pricing for new OpenAI model
 registerPricing("openai", "gpt-5", {
   input: 5.0,   // $5 per 1M input tokens
   output: 15.0  // $15 per 1M output tokens
 });
-
-// Override existing pricing
-registerPricing("openai", "gpt-4o", {
-  input: 2.0,   // Custom pricing
-  output: 8.0
-});
 ```
 
-**Validation:**
-- Provider and model must be non-empty strings
-- Input and output prices must be non-negative numbers
-- Prices cannot be NaN or Infinity
+### `registerContextLimit(provider, model, contextLimit)`
 
-**Default Pricing:**
-TokenFirewall includes default pricing for:
-- OpenAI (GPT-4o, GPT-4o-mini, GPT-4-turbo, GPT-3.5-turbo)
-- Anthropic (Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus)
-- Gemini (Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash)
-- Grok (Grok-beta, Grok-2, Llama models)
-- Kimi (Moonshot v1 models)
-
----
-
-#### `registerContextLimit(provider, model, contextLimit)`
-
-Registers custom context window limit for a model.
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `provider` | `string` | Yes | Provider name |
-| `model` | `string` | Yes | Model identifier |
-| `contextLimit` | `number` | Yes | Context window size in tokens |
-
-**Example:**
+Register custom context window limit.
 
 ```javascript
 const { registerContextLimit } = require("tokenfirewall");
 
-// Register context limit for custom model
-registerContextLimit("ollama", "llama3.2", 8192);
-
-// Register for new model
 registerContextLimit("openai", "gpt-5", 256000);
 ```
-
-**Validation:**
-- Provider and model must be non-empty strings
-- Context limit must be a positive number
-- Cannot be NaN or Infinity
-
----
-
-### Budget Persistence
-
-#### `exportBudgetState()`
-
-Exports the current budget state for persistence.
-
-**Parameters:** None
-
-**Returns:** `{ totalSpent: number; limit: number; mode: string } | null`
-
-**Example:**
-
-```javascript
-const { exportBudgetState } = require("tokenfirewall");
-const fs = require("fs");
-
-// Export state
-const state = exportBudgetState();
-
-if (state) {
-  // Save to file
-  fs.writeFileSync("budget-state.json", JSON.stringify(state, null, 2));
-  
-  // Or save to database
-  await db.budgets.update({ id: "main" }, state);
-  
-  // Or save to Redis
-  await redis.set("budget:state", JSON.stringify(state));
-}
-```
-
-**Returns `null` if:**
-- No budget guard has been created
-
----
-
-#### `importBudgetState(state)`
-
-Imports and restores a previously saved budget state.
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `state` | `{ totalSpent: number }` | Yes | Saved budget state |
-
-**Returns:** `void`
-
-**Throws:**
-- `Error` if no budget guard exists
-- `Error` if `totalSpent` is not a valid number
-- `Error` if `totalSpent` is negative
-
-**Example:**
-
-```javascript
-const { importBudgetState, createBudgetGuard } = require("tokenfirewall");
-const fs = require("fs");
-
-// Create budget guard first
-createBudgetGuard({ monthlyLimit: 100, mode: "block" });
-
-// Load from file
-if (fs.existsSync("budget-state.json")) {
-  const state = JSON.parse(fs.readFileSync("budget-state.json", "utf8"));
-  importBudgetState(state);
-  console.log("Budget state restored");
-}
-
-// Or load from database
-const state = await db.budgets.findOne({ id: "main" });
-if (state) {
-  importBudgetState(state);
-}
-```
-
-**Validation:**
-- Validates `totalSpent` is a valid number
-- Rejects negative values
-- Warns if imported value is suspiciously large (>10x limit)
 
 ---
 
@@ -683,41 +421,43 @@ TokenFirewall includes built-in support for:
 
 | Provider | Models | Pricing | Discovery |
 |----------|--------|---------|-----------|
-| **OpenAI** | GPT-4o, GPT-4o-mini, GPT-4-turbo, GPT-3.5-turbo | ✅ Included | ✅ API |
-| **Anthropic** | Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus | ✅ Included | ✅ Static |
-| **Google Gemini** | Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash | ✅ Included | ✅ API |
-| **Grok (X.AI)** | Grok-beta, Grok-2, Llama 3.x models | ✅ Included | ✅ API |
-| **Kimi (Moonshot)** | Moonshot v1 (8k, 32k, 128k) | ✅ Included | ✅ API |
-| **Custom** | Any LLM API | ⚙️ Register | ⚙️ Custom |
+| **OpenAI** | GPT-5, GPT-5-mini, GPT-4.1, GPT-4o, o1, gpt-image-1 | Included | API |
+| **Anthropic** | Claude 4.5 (Opus, Sonnet, Haiku), Claude 4, Claude 3.5 | Included | Static |
+| **Google Gemini** | Gemini 3, Gemini 3.1, Gemini 2.5, Nano Banana | Included | API |
+| **Grok (X.AI)** | Grok 3, Grok 2, Grok Vision | Included | API |
+| **Kimi (Moonshot)** | Moonshot v1 (8k, 32k, 128k) | Included | API |
+| **Meta** | Llama 3.3, Llama 3.1 | Included | Static |
+| **Mistral** | Mistral Large, Mixtral | Included | Static |
+| **Cohere** | Command R+, Command R | Included | Static |
+| **Custom** | Any LLM API | Register | Custom |
 
----
+### Pricing (Per 1M Tokens)
 
-## Use Cases
+**OpenAI:**
+- GPT-5: $5.00 / $15.00
+- GPT-5-mini: $1.50 / $5.00
+- GPT-4.1: $3.00 / $12.00
+- GPT-4o: $2.50 / $10.00
+- o1: $6.00 / $18.00
 
-### 1. Production Applications
-- Prevent unexpected cost spikes
-- Enforce spending limits per tenant/user
-- Track costs across multiple providers
+**Anthropic:**
+- Claude Opus 4.5: $17.00 / $85.00
+- Claude Sonnet 4.5: $4.00 / $20.00
+- Claude Haiku 4.5: $1.20 / $6.00
 
-### 2. Development & Testing
-- Limit test suite costs
-- Prevent accidental expensive calls
-- Safe experimentation with new models
+**Gemini:**
+- Gemini 3 Pro: $3.50 / $14.00
+- Gemini 3 Flash: $0.35 / $1.50
+- Gemini 2.5 Pro: $2.50 / $10.00
+- Nano Banana: $0.05 / $0.20
 
-### 3. Multi-Tenant SaaS
-- Per-customer budget limits
-- Tiered pricing enforcement
-- Usage-based billing
+### Context Limits
 
-### 4. AI Agent Systems
-- Prevent runaway agent loops
-- Budget-aware task planning
-- Cost-optimized model selection
-
-### 5. Internal Tools
-- Department-level budgets
-- Employee usage tracking
-- Cost allocation and reporting
+- GPT-5: 256K tokens
+- GPT-4.1: 200K tokens
+- Claude 4.5: 200K tokens
+- Gemini 3 Pro: 2M tokens
+- o1: 200K tokens
 
 ---
 
@@ -730,6 +470,8 @@ See the [`examples/`](./examples) directory for complete, runnable examples:
 3. **[Budget Persistence](./examples/3-budget-persistence.js)** - Save and restore state
 4. **[Custom Provider](./examples/4-custom-provider.js)** - Add your own LLM provider
 5. **[Model Discovery](./examples/5-model-discovery.js)** - Find and compare models
+6. **[Intelligent Routing](./examples/6-intelligent-routing.js)** - Automatic retry and fallback
+7. **[Dynamic Models](./examples/7-dynamic-models.js)** - Register models at runtime
 
 ---
 
@@ -742,11 +484,13 @@ import {
   createBudgetGuard,
   patchGlobalFetch,
   getBudgetStatus,
+  createModelRouter,
+  registerModels,
   BudgetGuardOptions,
   BudgetStatus,
   ModelInfo,
-  ProviderAdapter,
-  ModelPricing
+  ModelRouterOptions,
+  ModelConfig
 } from "tokenfirewall";
 
 // Full type safety
@@ -772,14 +516,12 @@ try {
   const response = await fetch(/* ... */);
 } catch (error) {
   if (error.message.includes("TokenFirewall: Budget exceeded")) {
-    // Budget limit reached
     console.error("Monthly budget exhausted");
-    // Notify user, upgrade prompt, etc.
-  } else if (error.message.includes("TokenFirewall: Cost must be")) {
-    // Invalid cost calculation (should not happen in normal use)
-    console.error("Internal error:", error.message);
+    // Handle budget limit
+  } else if (error.message.includes("TokenFirewall Router: Max routing retries exceeded")) {
+    console.error("All fallback models failed");
+    // Handle routing failure
   } else {
-    // Other errors (network, API, etc.)
     console.error("API error:", error.message);
   }
 }
@@ -791,15 +533,15 @@ try {
 |---------------|-------|----------|
 | `Budget exceeded! Would spend $X of $Y limit` | Budget limit reached | Increase limit or wait for reset |
 | `monthlyLimit must be a valid number` | Invalid budget configuration | Provide positive number |
-| `Cost must be a valid number` | Internal error | Report as bug |
+| `Max routing retries exceeded` | All fallback models failed | Check API status or fallback map |
 | `No pricing found for model "X"` | Unknown model | Register custom pricing |
-| `Cannot import budget state - no budget guard exists` | Import before create | Call `createBudgetGuard()` first |
 
 ---
 
 ## Best Practices
 
 ### 1. Initialize Early
+
 ```javascript
 // At application startup
 createBudgetGuard({ monthlyLimit: 100, mode: "block" });
@@ -807,12 +549,14 @@ patchGlobalFetch();
 ```
 
 ### 2. Use Warn Mode in Development
+
 ```javascript
 const mode = process.env.NODE_ENV === "production" ? "block" : "warn";
 createBudgetGuard({ monthlyLimit: 100, mode });
 ```
 
 ### 3. Persist Budget State
+
 ```javascript
 // Save on exit
 process.on("beforeExit", () => {
@@ -822,29 +566,39 @@ process.on("beforeExit", () => {
 ```
 
 ### 4. Monitor Usage
+
 ```javascript
 // Alert at 80% usage
 const status = getBudgetStatus();
 if (status && status.percentageUsed > 80) {
-  await sendAlert("Budget usage high!");
+  await sendAlert("Budget usage high");
 }
 ```
 
-### 5. Reset Monthly
+### 5. Use Router for Resilience
+
 ```javascript
-// Automated monthly reset
-const cron = require("node-cron");
-cron.schedule("0 0 1 * *", () => {
-  resetBudget();
-  console.log("Budget reset for new month");
+// Automatic fallback on failures
+createModelRouter({
+  strategy: "fallback",
+  fallbackMap: {
+    "gpt-4o": ["gpt-4o-mini", "gpt-3.5-turbo"]
+  },
+  maxRetries: 2
 });
 ```
 
----
+### 6. Register Models Dynamically
 
-## Contributing
-
-Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+```javascript
+// Discover and register models from API
+const models = await discoverModels(apiKey);
+registerModels("provider", models.map(m => ({
+  name: m.id,
+  contextLimit: m.context_window,
+  pricing: { input: m.input_price, output: m.output_price }
+})));
+```
 
 ---
 
@@ -859,20 +613,8 @@ MIT © [Ruthwik](https://github.com/Ruthwik000)
 - **GitHub:** https://github.com/Ruthwik000/tokenfirewall
 - **npm:** https://www.npmjs.com/package/tokenfirewall
 - **Issues:** https://github.com/Ruthwik000/tokenfirewall/issues
-- **Documentation:** [API.md](./API.md)
 - **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
 ---
 
-## Support
-
-If you find TokenFirewall useful, please:
-- ⭐ Star the repository
-- 🐛 Report bugs and issues
-- 💡 Suggest new features
-- 📖 Improve documentation
-- 🔀 Submit pull requests
-
----
-
-**Built with ❤️ for the AI developer community**
+Built with ❤️ for the AI developer community.
