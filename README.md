@@ -2,9 +2,10 @@
 
 > Enterprise-grade LLM cost enforcement middleware for Node.js with automatic budget protection, multi-provider support, and intelligent cost tracking.
 
-[![npm version](https://img.shields.io/npm/v/tokenfirewall.svg)](https://www.npmjs.com/package/tokenfirewall)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
+[![npm version](https://img.shields.io/npm/v/tokenfirewall.svg?style=flat-square)](https://www.npmjs.com/package/tokenfirewall)
+[![npm downloads](https://img.shields.io/npm/dm/tokenfirewall.svg?style=flat-square)](https://www.npmjs.com/package/tokenfirewall)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg?style=flat-square)](https://www.typescriptlang.org/)
 
 ## Overview
 
@@ -50,6 +51,8 @@ TokenFirewall is a production-ready middleware that automatically tracks and enf
 ```bash
 npm install tokenfirewall
 ```
+
+**📦 npm Package:** https://www.npmjs.com/package/tokenfirewall
 
 **Requirements:**
 - Node.js >= 16.0.0
