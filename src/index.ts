@@ -7,7 +7,8 @@ import { patchProvider } from "./interceptors/sdkInterceptor";
 import { listAvailableModels, ModelInfo, ListModelsOptions } from "./introspection/modelLister";
 import { contextRegistry } from "./introspection/contextRegistry";
 import { ModelRouter } from "./router/modelRouter";
-import { ModelRouterOptions } from "./router/types";
+import { ModelRouterOptions, ApiKeyConfig } from "./router/types";
+import { apiKeyManager } from "./router/apiKeyManager";
 
 let globalBudgetManager: BudgetManager | null = null;
 let globalModelRouter: ModelRouter | null = null;
@@ -136,6 +137,25 @@ export function registerModels(
 }
 
 /**
+ * Register API keys for cross-provider fallback
+ * @param keys - Object mapping provider names to API keys
+ */
+export function registerApiKeys(keys: ApiKeyConfig): void {
+  if (!keys || typeof keys !== 'object') {
+    throw new Error('TokenFirewall: Keys must be an object mapping provider names to API keys');
+  }
+  apiKeyManager.registerKeys(keys);
+}
+
+/**
+ * Check if cross-provider fallback is enabled
+ * @returns true if a model router exists with cross-provider enabled
+ */
+export function isCrossProviderEnabled(): boolean {
+  return globalModelRouter?.isCrossProviderEnabled() ?? false;
+}
+
+/**
  * Get current budget status
  * @returns Budget status or null if no budget guard is active
  */
@@ -228,7 +248,8 @@ export type {
   FailureType,
   FailureContext,
   RoutingDecision,
-  RouterEvent
+  RouterEvent,
+  ApiKeyConfig
 } from "./router/types";
 
 /**

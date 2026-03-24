@@ -3,6 +3,11 @@ import { calculateCost } from "../core/costEngine";
 import { logger } from "../logger";
 import { BudgetManager } from "../core/budgetManager";
 import { ModelRouter } from "../router/modelRouter";
+import { detectProvider, buildProviderUrl, isCrossProviderSwitch } from "../router/providerDetector";
+import { apiKeyManager } from "../router/apiKeyManager";
+import { buildProviderHeaders, appendApiKeyToUrl } from "../router/providerHeaders";
+import { transformRequest } from "../router/requestTransformer";
+import { transformResponse } from "../router/responseTransformer";
 
 let isPatched = false;
 let budgetManager: BudgetManager | null = null;
@@ -98,7 +103,7 @@ async function standardFetch(
 }
 
 /**
- * Fetch with automatic retry and model switching
+ * Fetch with automatic retry and model switching (including cross-provider)
  */
 async function fetchWithRetry(
   input: Parameters<typeof fetch>[0],
@@ -127,10 +132,20 @@ async function fetchWithRetry(
   let currentInput = input;
 
   // Extract original model and provider from request
-  const { originalModel, provider } = extractModelInfo(input, init);
+  const { originalModel, provider: originalProvider } = extractModelInfo(input, init);
   
   if (originalModel) {
     attemptedModels.push(originalModel);
+  }
+
+  // Parse the original request body for potential cross-provider transformations
+  let originalRequestBody: any = null;
+  if (init?.body) {
+    try {
+      originalRequestBody = JSON.parse(init.body as string);
+    } catch {
+      // Not JSON
+    }
   }
 
   while (retryCount <= (modelRouter?.getMaxRetries() || 0)) {
@@ -157,12 +172,40 @@ async function fetchWithRetry(
         throw new Error(JSON.stringify(errorObj));
       }
 
+      // If this was a cross-provider retry, transform the response back
+      // to the original provider's format for transparency
+      if (originalProvider && retryCount > 0) {
+        const currentModel = extractCurrentModel(currentInput, currentInit);
+        const currentProvider = currentModel ? detectProvider(currentModel) : null;
+
+        if (currentProvider && currentProvider !== originalProvider) {
+          try {
+            const clonedForTransform = response.clone();
+            const responseData = await clonedForTransform.json();
+            const transformed = transformResponse(
+              responseData,
+              currentProvider,      // source: the provider that actually responded
+              originalProvider,     // target: what the caller expects
+              currentModel || ''
+            );
+            return new Response(JSON.stringify(transformed), {
+              status: response.status,
+              statusText: response.statusText,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          } catch {
+            // If transformation fails, return original response
+            return response;
+          }
+        }
+      }
+
       return response;
     } catch (error) {
       lastError = error;
 
       // If no router or no model info, throw immediately
-      if (!modelRouter || !originalModel || !provider) {
+      if (!modelRouter || !originalModel || !originalProvider) {
         throw error;
       }
 
@@ -187,7 +230,7 @@ async function fetchWithRetry(
             return {};
           }
         })() : {},
-        provider,
+        provider: originalProvider,
         retryCount,
         attemptedModels
       });
@@ -206,11 +249,38 @@ async function fetchWithRetry(
         maxRetries: modelRouter.getMaxRetries()
       });
 
-      // Update request with new model
       attemptedModels.push(decision.nextModel);
-      const updated = updateRequestModel(currentInput, currentInit, decision.nextModel, provider);
-      currentInput = updated.input;
-      currentInit = updated.init;
+
+      // Check if this is a cross-provider switch
+      const nextProvider = detectProvider(decision.nextModel);
+      const isCrossProvider = nextProvider
+        && originalProvider
+        && isCrossProviderSwitch(originalModel, decision.nextModel)
+        && modelRouter.isCrossProviderEnabled();
+
+      if (isCrossProvider && nextProvider && originalRequestBody) {
+        // --- Cross-provider fallback ---
+        const updated = buildCrossProviderRequest(
+          originalRequestBody,
+          originalProvider,
+          nextProvider,
+          decision.nextModel
+        );
+
+        if (updated) {
+          currentInput = updated.url;
+          currentInit = updated.init;
+        } else {
+          // Could not build cross-provider request, throw
+          throw error;
+        }
+      } else {
+        // --- Same-provider fallback (existing behavior) ---
+        const updated = updateRequestModel(currentInput, currentInit, decision.nextModel, originalProvider);
+        currentInput = updated.input;
+        currentInit = updated.init;
+      }
+
       retryCount++;
     }
   }
@@ -219,6 +289,85 @@ async function fetchWithRetry(
   throw new Error(
     `TokenFirewall: Max routing retries exceeded. Last error: ${lastError}`
   );
+}
+
+/**
+ * Build a completely new request for a different provider (cross-provider fallback)
+ */
+function buildCrossProviderRequest(
+  originalBody: any,
+  sourceProvider: string,
+  targetProvider: string,
+  targetModel: string
+): { url: string; init: RequestInit } | null {
+  // Get API key for target provider
+  const apiKey = apiKeyManager.getKey(targetProvider);
+  if (!apiKey) {
+    console.warn(
+      `TokenFirewall Router: No API key registered for provider "${targetProvider}". ` +
+      `Cross-provider fallback skipped. Register keys with registerApiKeys().`
+    );
+    return null;
+  }
+
+  // Transform request body
+  const transformedBody = transformRequest(
+    originalBody,
+    sourceProvider,
+    targetProvider,
+    targetModel
+  );
+
+  // Build target URL
+  let targetUrl = buildProviderUrl(targetProvider, targetModel);
+  if (!targetUrl) {
+    console.warn(
+      `TokenFirewall Router: Unknown endpoint for provider "${targetProvider}".`
+    );
+    return null;
+  }
+
+  // Append API key to URL if needed (Gemini)
+  targetUrl = appendApiKeyToUrl(targetUrl, targetProvider, apiKey);
+
+  // Build headers
+  const headers = buildProviderHeaders(targetProvider, apiKey);
+
+  return {
+    url: targetUrl,
+    init: {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(transformedBody),
+    },
+  };
+}
+
+/**
+ * Extract current model from the (possibly updated) request
+ */
+function extractCurrentModel(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1]
+): string | null {
+  // Check URL for Gemini-style model
+  const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
+  const geminiMatch = url.match(/\/models\/([^:?]+)/);
+  if (geminiMatch) {
+    return geminiMatch[1];
+  }
+
+  // Check body for model field
+  if (init?.body) {
+    try {
+      const body = JSON.parse(init.body as string);
+      return body.model || null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -321,7 +470,6 @@ function updateRequestModel(
         body: init?.body || null,
         mode: input.mode,
         credentials: input.credentials,
-        cache: input.cache,
         redirect: input.redirect,
         referrer: input.referrer,
         integrity: input.integrity
