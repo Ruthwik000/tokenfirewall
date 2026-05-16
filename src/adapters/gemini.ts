@@ -38,14 +38,28 @@ export const geminiAdapter: ProviderAdapter = {
       throw new Error("TokenFirewall: Invalid Gemini response format");
     }
 
-    // Extract model from request or use default
+    // Extract model from request context or use default
     let model = "gemini-1.5-flash";
     if (request && typeof request === "object") {
-      const req = request as { model?: string };
-      if (req.model) {
-        model = req.model;
+      const req = request as { url?: string; model?: string };
+
+      // Try to extract model from the Gemini URL: /models/MODEL_NAME:generateContent
+      if (req.url) {
+        const match = req.url.match(/\/models\/([^/:]+)[:/]/);
+        if (match) {
+          model = match[1];
+        }
+      }
+
+      // Fallback: explicit model field in request body
+      if (!model || model === "gemini-1.5-flash") {
+        if (req.model) {
+          model = req.model;
+        }
       }
     }
+    
+    // modelVersion in the response always wins if present (most accurate)
     if (resp.modelVersion) {
       model = resp.modelVersion;
     }

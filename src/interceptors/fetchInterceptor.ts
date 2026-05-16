@@ -75,9 +75,15 @@ async function standardFetch(
   // Process response and track budget BEFORE returning
   try {
     const responseData = await clonedResponse.json();
-    
+
+    // Build a request context so adapters can read the model/URL
+    const url = typeof input === 'string'
+      ? input
+      : (input instanceof Request ? input.url : String(input));
+    const requestContext = { url, body: init?.body };
+
     // Try to process with adapter registry
-    const normalizedUsage = adapterRegistry.process(responseData);
+    const normalizedUsage = adapterRegistry.process(responseData, requestContext);
 
     if (normalizedUsage) {
       // Calculate cost
