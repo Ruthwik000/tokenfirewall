@@ -188,10 +188,12 @@ async function fetchWithRetry(
               originalProvider,     // target: what the caller expects
               currentModel || ''
             );
+            const transformedHeaders = new Headers(response.headers);
+            transformedHeaders.set('Content-Type', 'application/json');
             return new Response(JSON.stringify(transformed), {
               status: response.status,
               statusText: response.statusText,
-              headers: { 'Content-Type': 'application/json' },
+              headers: transformedHeaders,
             });
           } catch {
             // If transformation fails, return original response
