@@ -52,7 +52,10 @@ export class ErrorDetector {
       case 403:
         return "access_denied";
       case 400:
-        // 400 can be context overflow or other issues
+        // Body may contain a specific error code (e.g. context_length_exceeded)
+        if (this.isApiError(error)) {
+          return this.classifyApiError(error);
+        }
         return "unknown";
       default:
         return "unknown";
@@ -159,10 +162,16 @@ export class ErrorDetector {
       const errorType = data.error?.type || data.type || "";
       const errorCode = data.error?.code || data.code || "";
 
+      const lowerMessage = errorMessage.toLowerCase();
+
       return (
         errorType === "invalid_request_error" &&
-        (errorCode === "context_length_exceeded" ||
-          errorMessage.toLowerCase().includes("context"))
+        (
+          errorCode === "context_length_exceeded" ||
+          lowerMessage.includes("context") ||
+          lowerMessage.includes("too long") ||
+          lowerMessage.includes("maximum")
+        )
       );
     }
 
