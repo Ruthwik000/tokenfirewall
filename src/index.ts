@@ -141,7 +141,7 @@ export function registerModels(
  * @param keys - Object mapping provider names to API keys
  */
 export function registerApiKeys(keys: ApiKeyConfig): void {
-  if (!keys || typeof keys !== 'object') {
+  if (!keys || typeof keys !== 'object' || Array.isArray(keys)) {
     throw new Error('TokenFirewall: Keys must be an object mapping provider names to API keys');
   }
   apiKeyManager.registerKeys(keys);
