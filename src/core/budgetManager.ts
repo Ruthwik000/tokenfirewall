@@ -65,6 +65,7 @@ export class BudgetManager {
           throw new Error(message);
         } else {
           console.warn(message);
+          return;
         }
       }
 
