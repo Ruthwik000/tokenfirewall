@@ -18,6 +18,18 @@ export type FailureType =
   | "unknown";
 
 /**
+ * API key configuration for cross-provider fallback
+ */
+export interface ApiKeyConfig {
+  openai?: string;
+  anthropic?: string;
+  gemini?: string;
+  grok?: string;
+  kimi?: string;
+  [key: string]: string | undefined;
+}
+
+/**
  * Configuration options for model router
  */
 export interface ModelRouterOptions {
@@ -27,6 +39,10 @@ export interface ModelRouterOptions {
   fallbackMap?: Record<string, string[]>;
   /** Maximum number of retry attempts (default: 1) */
   maxRetries?: number;
+  /** API keys for cross-provider fallback */
+  apiKeys?: ApiKeyConfig;
+  /** Enable cross-provider fallback (default: false) */
+  enableCrossProvider?: boolean;
 }
 
 /**

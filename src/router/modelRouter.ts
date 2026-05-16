@@ -6,6 +6,7 @@ import {
 } from "./types";
 import { errorDetector } from "./errorDetector";
 import { fallbackStrategy, contextStrategy, costStrategy } from "./routingStrategies";
+import { apiKeyManager } from "./apiKeyManager";
 
 /**
  * Intelligent Model Router
@@ -15,11 +16,18 @@ export class ModelRouter {
   private strategy: RoutingStrategy;
   private fallbackMap: Record<string, string[]>;
   private maxRetries: number;
+  private crossProviderEnabled: boolean;
 
   constructor(options: ModelRouterOptions) {
     this.strategy = options.strategy;
     this.fallbackMap = options.fallbackMap || {};
     this.maxRetries = options.maxRetries ?? 1;
+    this.crossProviderEnabled = options.enableCrossProvider ?? false;
+
+    // Register API keys if provided
+    if (options.apiKeys) {
+      apiKeyManager.registerKeys(options.apiKeys);
+    }
 
     this.validateOptions();
   }
@@ -148,5 +156,12 @@ export class ModelRouter {
    */
   public getStrategy(): RoutingStrategy {
     return this.strategy;
+  }
+
+  /**
+   * Check if cross-provider fallback is enabled
+   */
+  public isCrossProviderEnabled(): boolean {
+    return this.crossProviderEnabled;
   }
 }
