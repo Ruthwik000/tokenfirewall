@@ -227,6 +227,10 @@ export async function listModels(options: Omit<ListModelsOptions, 'budgetManager
 
 // Keep the original export for backward compatibility
 export { listAvailableModels };
+export {
+  assertValidSmartRouterOptions,
+  validateSmartRouterOptions
+} from "./router/smartRouterValidator";
 
 // Export types for TypeScript users
 export type {
@@ -251,6 +255,12 @@ export type {
   RouterEvent,
   ApiKeyConfig
 } from "./router/types";
+
+export type {
+  SmartRouterTaskConfig,
+  SmartRouterValidationOptions,
+  SmartRouterValidationResult
+} from "./router/smartRouterValidator";
 
 /**
  * Model configuration for bulk registration
