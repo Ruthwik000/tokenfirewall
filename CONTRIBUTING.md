@@ -59,6 +59,11 @@ src/
 ├── interceptors/      # Fetch and SDK interception
 ├── introspection/     # Model discovery and context registry
 ├── router/            # Intelligent routing and failover
+│   ├── detectors/     # Task detection methods (keyword, pattern, language, context)
+│   ├── taskTypes.ts   # Task type definitions
+│   ├── taskRegistry.ts # Task configuration registry
+│   └── taskClassifier.ts # Main classification engine
+├── analytics/         # Task analytics and monitoring
 ├── index.ts           # Main exports
 ├── logger.ts          # Structured logging
 └── registry.ts        # Adapter registry
@@ -66,6 +71,55 @@ src/
 examples/              # Working examples
 dist/                  # Compiled JavaScript (generated)
 ```
+
+## Smart Model Selection Feature
+
+We're currently implementing a **Smart Model Selection** feature that automatically routes requests to the optimal LLM model based on task type. This is a major feature being developed for v2.2.0.
+
+### 📚 Feature Documentation
+
+**Complete documentation:** [SMART-MODEL-SELECTION.md](./SMART-MODEL-SELECTION.md)
+
+This document contains:
+- Feature overview and architecture
+- 12 built-in task types (code generation, math reasoning, document analysis, etc.)
+- Task detection methods (keyword, pattern, language, context)
+- API reference and usage examples
+- Cost savings analysis
+- Implementation guidelines
+
+### 🎯 Contributing to Smart Model Selection
+
+There are **29 GitHub issues** for this feature, labeled with `gssoc'26` and `feature: smart-routing`. Issues are categorized by difficulty:
+
+- **Level 1 (Easy)**: Good for beginners - 11 issues
+- **Level 2 (Medium)**: Intermediate - 13 issues  
+- **Level 3 (Hard)**: Advanced - 5 issues
+
+**Good First Issues:** Look for issues labeled `good first issue` - these are perfect for new contributors!
+
+### 📋 Implementation Phases
+
+1. **Phase 1: Foundation** - Type definitions and registries
+2. **Phase 2: Detection** - Keyword, pattern, language, and context detectors
+3. **Phase 3: Routing** - Smart routing strategy integration
+4. **Phase 4: Analytics** - Task analytics and monitoring
+5. **Phase 5: API** - Public APIs for manual classification
+6. **Phase 6: Testing** - Comprehensive test coverage
+7. **Phase 7: Documentation** - README and examples
+8. **Phase 8: Release** - Performance optimization and release
+
+### 🔗 Related Issues
+
+View all Smart Model Selection issues: https://github.com/Ruthwik000/tokenfirewall/issues?q=is%3Aissue+label%3A%22feature%3A+smart-routing%22
+
+### 💡 Before Starting
+
+1. Read [SMART-MODEL-SELECTION.md](./SMART-MODEL-SELECTION.md) to understand the feature
+2. Pick an issue that matches your skill level
+3. Check issue dependencies (some issues depend on others)
+4. Comment on the issue to let others know you're working on it
+5. Follow the deliverables and acceptance criteria in the issue
 
 ## Coding Standards
 
