@@ -249,7 +249,14 @@ export type {
   FailureContext,
   RoutingDecision,
   RouterEvent,
-  ApiKeyConfig
+  ApiKeyConfig,
+  BuiltInTaskType,
+  TaskType,
+  TaskDetectionMethod,
+  TaskModelPreference,
+  TaskClassificationConfig,
+  TaskClassification,
+  SmartRouterOptions
 } from "./router/types";
 
 /**

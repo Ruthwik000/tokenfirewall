@@ -283,9 +283,20 @@ Creates and configures an intelligent model router.
 
 ```typescript
 interface ModelRouterOptions {
-  strategy: "fallback" | "context" | "cost";  // Routing strategy
+  strategy: "fallback" | "context" | "cost" | "smart";  // Routing strategy
+  smart?: SmartRouterOptions;                 // Smart routing options
   fallbackMap?: Record<string, string[]>;     // Fallback model map
   maxRetries?: number;                        // Max retry attempts (default: 1)
+}
+
+interface SmartRouterOptions {
+  defaultModel?: string;                      // Fallback when confidence is low
+  confidenceThreshold?: number;               // Minimum task confidence
+  modelOverrides?: Record<string, string>;    // Override task-to-model mapping
+  taskClassification?: Record<string, TaskClassificationConfig>;
+  cacheDetections?: boolean;                  // Cache repeated prompt detections
+  detectionCacheTtlMs?: number;               // Detection cache TTL in ms
+  enableAnalytics?: boolean;                  // Record task routing analytics
 }
 ```
 
@@ -307,6 +318,21 @@ createModelRouter({
 patchGlobalFetch();
 
 // API calls will automatically retry with fallback models on failure
+```
+
+Smart routing type definitions are available for the upcoming task classifier:
+
+```typescript
+import type { SmartRouterOptions, TaskClassification } from "tokenfirewall";
+
+const smartOptions: SmartRouterOptions = {
+  defaultModel: "gpt-4o-mini",
+  confidenceThreshold: 0.75,
+  modelOverrides: {
+    code_generation: "claude-3-5-sonnet-20241022",
+    math_reasoning: "o1-mini"
+  }
+};
 ```
 
 ### Routing Strategies
