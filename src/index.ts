@@ -227,6 +227,10 @@ export async function listModels(options: Omit<ListModelsOptions, 'budgetManager
 
 // Keep the original export for backward compatibility
 export { listAvailableModels };
+export {
+  DEFAULT_KEYWORD_TASKS,
+  detectByKeywords
+} from "./router/keywordDetector";
 
 // Export types for TypeScript users
 export type {
@@ -251,6 +255,12 @@ export type {
   RouterEvent,
   ApiKeyConfig
 } from "./router/types";
+
+export type {
+  KeywordDetectionOptions,
+  KeywordDetectionResult,
+  KeywordTaskDefinition
+} from "./router/keywordDetector";
 
 /**
  * Model configuration for bulk registration
