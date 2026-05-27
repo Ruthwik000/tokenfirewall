@@ -12,6 +12,7 @@ export function fallbackStrategy(
   fallbackMap: Record<string, string[]>
 ): RoutingDecision {
   const { originalModel, attemptedModels } = context;
+  const attempted = new Set(attemptedModels);
 
   // Get fallback list for this model
   const fallbacks = fallbackMap[originalModel];
@@ -24,7 +25,7 @@ export function fallbackStrategy(
   }
 
   // Find first fallback that hasn't been attempted
-  const nextModel = fallbacks.find(model => !attemptedModels.includes(model));
+  const nextModel = fallbacks.find(model => !attempted.has(model));
 
   if (!nextModel) {
     return {
@@ -49,6 +50,7 @@ export function contextStrategy(
   failureType: FailureType
 ): RoutingDecision {
   const { originalModel, provider, attemptedModels } = context;
+  const attempted = new Set(attemptedModels);
 
   // Only applicable for context overflow
   if (failureType !== "context_overflow") {
@@ -80,20 +82,19 @@ export function contextStrategy(
 
   // Filter models with larger context that haven't been attempted
   const largerContextModels = availableModels
-    .filter((model: string) => {
+    .map((model: string) => {
       const limit = contextRegistry.getContextLimit(provider, model);
+      return { model, limit };
+    })
+    .filter(({ model, limit }) => {
       return (
         limit !== undefined &&
         limit > currentLimit &&
-        !attemptedModels.includes(model) &&
+        !attempted.has(model) &&
         model !== originalModel // Don't suggest the same model
       );
     })
-    .sort((a: string, b: string) => {
-      const limitA = contextRegistry.getContextLimit(provider, a) || 0;
-      const limitB = contextRegistry.getContextLimit(provider, b) || 0;
-      return limitA - limitB; // Sort ascending (smallest upgrade first)
-    });
+    .sort((a, b) => (a.limit || 0) - (b.limit || 0)); // Sort ascending (smallest upgrade first)
 
   if (largerContextModels.length === 0) {
     return {
@@ -102,8 +103,7 @@ export function contextStrategy(
     };
   }
 
-  const nextModel = largerContextModels[0];
-  const nextLimit = contextRegistry.getContextLimit(provider, nextModel);
+  const { model: nextModel, limit: nextLimit } = largerContextModels[0];
 
   return {
     retry: true,
@@ -121,6 +121,7 @@ export function costStrategy(
   failureType: FailureType
 ): RoutingDecision {
   const { originalModel, provider, attemptedModels } = context;
+  const attempted = new Set(attemptedModels);
 
   // Get current model's pricing
   let currentPricing;
@@ -149,25 +150,25 @@ export function costStrategy(
   // Find cheaper models that haven't been attempted
   const cheaperModels = providerModels
     .filter((model: string) => {
-      if (attemptedModels.includes(model) || model === originalModel) {
+      if (attempted.has(model) || model === originalModel) {
         return false;
       }
 
+      return true;
+    })
+    .map((model: string) => {
       try {
         const pricing = pricingRegistry.getPricing(provider, model);
         const avgCost = (pricing.input + pricing.output) / 2;
-        return avgCost < currentAvgCost;
+        return { model, avgCost };
       } catch {
-        return false;
+        return null;
       }
     })
-    .sort((a: string, b: string) => {
-      const pricingA = pricingRegistry.getPricing(provider, a);
-      const pricingB = pricingRegistry.getPricing(provider, b);
-      const avgCostA = (pricingA.input + pricingA.output) / 2;
-      const avgCostB = (pricingB.input + pricingB.output) / 2;
-      return avgCostA - avgCostB; // Sort ascending (cheapest first)
-    });
+    .filter((entry): entry is { model: string; avgCost: number } => (
+      entry !== null && entry.avgCost < currentAvgCost
+    ))
+    .sort((a, b) => a.avgCost - b.avgCost); // Sort ascending (cheapest first)
 
   if (cheaperModels.length === 0) {
     return {
@@ -176,7 +177,7 @@ export function costStrategy(
     };
   }
 
-  const nextModel = cheaperModels[0];
+  const nextModel = cheaperModels[0].model;
 
   return {
     retry: true,

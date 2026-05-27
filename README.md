@@ -286,6 +286,9 @@ interface ModelRouterOptions {
   strategy: "fallback" | "context" | "cost";  // Routing strategy
   fallbackMap?: Record<string, string[]>;     // Fallback model map
   maxRetries?: number;                        // Max retry attempts (default: 1)
+  cacheRoutingDecisions?: boolean;            // Cache repeated decisions (default: true)
+  routingCacheTtlMs?: number;                 // Cache TTL in ms (default: 5 minutes)
+  maxRoutingCacheSize?: number;               // Max cached decisions (default: 1000)
 }
 ```
 
@@ -301,7 +304,8 @@ createModelRouter({
     "gpt-4o": ["gpt-4o-mini", "gpt-3.5-turbo"],
     "claude-3-5-sonnet-20241022": ["claude-3-5-haiku-20241022"]
   },
-  maxRetries: 2
+  maxRetries: 2,
+  cacheRoutingDecisions: true
 });
 
 patchGlobalFetch();
@@ -323,6 +327,13 @@ patchGlobalFetch();
 **3. Cost Strategy** - Switches to cheaper model
 - Selects cheaper model from same provider
 - Best for: Cost optimization, rate limit handling
+
+### Performance
+
+- Repeated routing decisions are cached by default for 5 minutes.
+- Cached decisions are bounded by `maxRoutingCacheSize` to avoid unbounded memory growth.
+- The cache key includes the strategy, failure type, provider, model, retry count, attempted models, and request prompt fingerprint.
+- Set `cacheRoutingDecisions: false` to disable caching for workloads that require fully uncached routing decisions.
 
 ### Error Detection
 
