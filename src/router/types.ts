@@ -55,6 +55,8 @@ export interface FailureContext {
   originalModel: string;
   /** Request body sent to API */
   requestBody: any;
+  /** Optional TokenFirewall routing hints parsed from request headers */
+  headerHints?: TokenFirewallRequestHeaderHints;
   /** Provider name */
   provider: string;
   /** Current retry attempt count */
@@ -89,4 +91,16 @@ export interface RouterEvent {
   attempt: number;
   /** Maximum retries allowed */
   maxRetries: number;
+}
+
+/**
+ * TokenFirewall-specific request header hints for smart routing integrations.
+ */
+export interface TokenFirewallRequestHeaderHints {
+  /** Optional manual task type, from X-TokenFirewall-Task-Type */
+  taskType?: string;
+  /** Optional smart-routing toggle, from X-TokenFirewall-Smart-Routing */
+  smartRouting?: boolean;
+  /** Optional tag list, from X-TokenFirewall-Tags */
+  tags: string[];
 }
