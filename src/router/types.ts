@@ -39,6 +39,12 @@ export interface ModelRouterOptions {
   fallbackMap?: Record<string, string[]>;
   /** Maximum number of retry attempts (default: 1) */
   maxRetries?: number;
+  /** Cache repeated routing decisions for identical failure contexts (default: true) */
+  cacheRoutingDecisions?: boolean;
+  /** Routing decision cache TTL in milliseconds (default: 5 minutes) */
+  routingCacheTtlMs?: number;
+  /** Maximum cached routing decisions retained in memory (default: 1000) */
+  maxRoutingCacheSize?: number;
   /** API keys for cross-provider fallback */
   apiKeys?: ApiKeyConfig;
   /** Enable cross-provider fallback (default: false) */

@@ -211,11 +211,12 @@ export class ErrorDetector {
     if (typeof data === "object" && data !== null) {
       const errorMessage = data.error?.message || data.message || "";
       const errorCode = data.error?.code || data.code || "";
+      const lowerMessage = errorMessage.toLowerCase();
 
       return (
         errorCode === "model_not_found" ||
-        errorMessage.toLowerCase().includes("model") &&
-        errorMessage.toLowerCase().includes("not found")
+        lowerMessage.includes("model") &&
+        lowerMessage.includes("not found")
       );
     }
 
