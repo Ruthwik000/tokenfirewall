@@ -333,6 +333,34 @@ The router automatically detects and classifies failures:
 - `access_denied` - HTTP 403 or unauthorized
 - `unknown` - Other errors
 
+### Request Header Hints
+
+TokenFirewall can parse optional request headers that describe how a future
+smart-routing layer should treat a request:
+
+```javascript
+const {
+  parseTokenFirewallHeaders,
+  hasTokenFirewallHeaderHints
+} = require("tokenfirewall");
+
+const hints = parseTokenFirewallHeaders({
+  "X-TokenFirewall-Task-Type": "code_generation",
+  "X-TokenFirewall-Smart-Routing": "true",
+  "X-TokenFirewall-Tags": "prod, premium"
+});
+
+if (hasTokenFirewallHeaderHints(hints)) {
+  console.log(hints);
+  // { taskType: "code_generation", smartRouting: true, tags: ["prod", "premium"] }
+}
+```
+
+Supported headers:
+- `X-TokenFirewall-Task-Type` - manual task type hint
+- `X-TokenFirewall-Smart-Routing` - `true`/`false` style routing toggle
+- `X-TokenFirewall-Tags` - comma-separated routing or analytics tags
+
 ### `disableModelRouter()`
 
 Disables the model router.

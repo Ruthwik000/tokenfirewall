@@ -227,6 +227,13 @@ export async function listModels(options: Omit<ListModelsOptions, 'budgetManager
 
 // Keep the original export for backward compatibility
 export { listAvailableModels };
+export {
+  TOKEN_FIREWALL_SMART_ROUTING_HEADER,
+  TOKEN_FIREWALL_TAGS_HEADER,
+  TOKEN_FIREWALL_TASK_TYPE_HEADER,
+  hasTokenFirewallHeaderHints,
+  parseTokenFirewallHeaders
+} from "./router/requestHeaders";
 
 // Export types for TypeScript users
 export type {
@@ -249,7 +256,8 @@ export type {
   FailureContext,
   RoutingDecision,
   RouterEvent,
-  ApiKeyConfig
+  ApiKeyConfig,
+  TokenFirewallRequestHeaderHints
 } from "./router/types";
 
 /**

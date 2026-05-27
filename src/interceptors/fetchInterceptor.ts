@@ -8,6 +8,10 @@ import { apiKeyManager } from "../router/apiKeyManager";
 import { buildProviderHeaders, appendApiKeyToUrl } from "../router/providerHeaders";
 import { transformRequest } from "../router/requestTransformer";
 import { transformResponse } from "../router/responseTransformer";
+import {
+  hasTokenFirewallHeaderHints,
+  parseTokenFirewallHeaders
+} from "../router/requestHeaders";
 
 let isPatched = false;
 let budgetManager: BudgetManager | null = null;
@@ -133,6 +137,7 @@ async function fetchWithRetry(
 
   // Extract original model and provider from request
   const { originalModel, provider: originalProvider } = extractModelInfo(input, init);
+  const headerHints = extractTokenFirewallHeaderHints(input, init);
   
   if (originalModel) {
     attemptedModels.push(originalModel);
@@ -232,6 +237,7 @@ async function fetchWithRetry(
             return {};
           }
         })() : {},
+        headerHints,
         provider: originalProvider,
         retryCount,
         attemptedModels
@@ -343,6 +349,28 @@ function buildCrossProviderRequest(
       body: JSON.stringify(transformedBody),
     },
   };
+}
+
+/**
+ * Extract TokenFirewall-specific header hints without mutating request headers.
+ */
+function extractTokenFirewallHeaderHints(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1]
+) {
+  const initHints = parseTokenFirewallHeaders(init?.headers);
+  if (hasTokenFirewallHeaderHints(initHints)) {
+    return initHints;
+  }
+
+  if (input instanceof Request) {
+    const requestHints = parseTokenFirewallHeaders(input.headers);
+    if (hasTokenFirewallHeaderHints(requestHints)) {
+      return requestHints;
+    }
+  }
+
+  return undefined;
 }
 
 /**
