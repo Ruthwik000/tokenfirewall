@@ -9,6 +9,7 @@ import { contextRegistry } from "./introspection/contextRegistry";
 import { ModelRouter } from "./router/modelRouter";
 import { ModelRouterOptions, ApiKeyConfig } from "./router/types";
 import { apiKeyManager } from "./router/apiKeyManager";
+import { detectByPatterns, defaultPatternDefinitions } from "./router/patternDetector";
 
 let globalBudgetManager: BudgetManager | null = null;
 let globalModelRouter: ModelRouter | null = null;
@@ -227,6 +228,7 @@ export async function listModels(options: Omit<ListModelsOptions, 'budgetManager
 
 // Keep the original export for backward compatibility
 export { listAvailableModels };
+export { detectByPatterns, defaultPatternDefinitions };
 
 // Export types for TypeScript users
 export type {
@@ -251,6 +253,13 @@ export type {
   RouterEvent,
   ApiKeyConfig
 } from "./router/types";
+
+export type {
+  PatternTaskType,
+  PatternDefinition,
+  PatternDetectorOptions,
+  PatternDetectionResult
+} from "./router/patternDetector";
 
 /**
  * Model configuration for bulk registration
