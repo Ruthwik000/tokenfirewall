@@ -9,6 +9,18 @@ import { buildProviderHeaders, appendApiKeyToUrl } from "../router/providerHeade
 import { transformRequest } from "../router/requestTransformer";
 import { transformResponse } from "../router/responseTransformer";
 
+class HttpError extends Error {
+  public status: number;
+  public response: { data: any };
+
+  constructor(status: number, data: any) {
+    super(`HTTP ${status}`);
+    this.name = 'HttpError';
+    this.status = status;
+    this.response = { data };
+  }
+}
+
 let isPatched = false;
 let budgetManager: BudgetManager | null = null;
 let modelRouter: ModelRouter | null = null;
@@ -165,11 +177,7 @@ async function fetchWithRetry(
         }
         
         // Throw proper Error instance with structured data
-        const errorObj = {
-          status: response.status,
-          response: { data: errorData }
-        };
-        throw new Error(JSON.stringify(errorObj));
+        throw new HttpError(response.status, errorData);
       }
 
       // If this was a cross-provider retry, transform the response back
@@ -211,14 +219,10 @@ async function fetchWithRetry(
         throw error;
       }
 
-      // Parse error if it's a JSON string
+      // Parse error if it's an HttpError with structured data
       let parsedError = error;
-      if (error instanceof Error && error.message.startsWith('{')) {
-        try {
-          parsedError = JSON.parse(error.message);
-        } catch {
-          // Keep original error
-        }
+      if (error instanceof HttpError) {
+        parsedError = { status: error.status, response: error.response };
       }
 
       // Get routing decision

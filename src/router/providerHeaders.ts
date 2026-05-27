@@ -8,7 +8,8 @@
  */
 export function buildProviderHeaders(
   provider: string,
-  apiKey: string
+  apiKey: string,
+  anthropicVersion?: string
 ): Record<string, string> {
   const baseHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -25,7 +26,7 @@ export function buildProviderHeaders(
       return {
         ...baseHeaders,
         'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'anthropic-version': anthropicVersion || '2023-06-01',
       };
 
     case 'gemini':

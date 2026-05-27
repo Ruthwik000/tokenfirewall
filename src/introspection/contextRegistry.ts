@@ -114,10 +114,11 @@ class ContextRegistry {
    */
   public register(provider: string, model: string, limit: ContextLimit): void {
     const normalizedProvider = provider.toLowerCase();
+    const normalizedModel = model.toLowerCase();
     if (!this.limits.has(normalizedProvider)) {
       this.limits.set(normalizedProvider, new Map());
     }
-    this.limits.get(normalizedProvider)!.set(model, limit);
+    this.limits.get(normalizedProvider)!.set(normalizedModel, limit);
   }
 
   /**
@@ -126,12 +127,13 @@ class ContextRegistry {
    */
   public getContextLimit(provider: string, model: string): number | undefined {
     const normalizedProvider = provider.toLowerCase();
+    const normalizedModel = model.toLowerCase();
     const providerLimits = this.limits.get(normalizedProvider);
     if (!providerLimits) {
       return undefined;
     }
 
-    const limit = providerLimits.get(model);
+    const limit = providerLimits.get(normalizedModel);
     return limit?.tokens;
   }
 

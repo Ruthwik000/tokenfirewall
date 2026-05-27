@@ -11,7 +11,7 @@ export class Logger {
   public logUsage(usage: NormalizedUsage, cost: CostBreakdown): void {
     const timestamp = new Date().toISOString();
     
-    console.log(
+    process.stderr.write(
       JSON.stringify({
         timestamp,
         provider: usage.provider,
@@ -26,7 +26,7 @@ export class Logger {
           output: cost.outputCost.toFixed(6),
           total: cost.totalCost.toFixed(6),
         },
-      })
+      }) + '\n'
     );
   }
 
@@ -34,12 +34,12 @@ export class Logger {
    * Log router event (model switching)
    */
   public logRouterEvent(event: RouterEvent): void {
-    console.log(
+    process.stderr.write(
       `[TOKENFIREWALL ROUTER]\n` +
       `Original: ${event.originalModel}\n` +
       `Switched: ${event.nextModel}\n` +
       `Reason: ${event.reason}\n` +
-      `Attempt: ${event.attempt}/${event.maxRetries}`
+      `Attempt: ${event.attempt}/${event.maxRetries}\n`
     );
   }
 }

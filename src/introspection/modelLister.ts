@@ -96,17 +96,6 @@ function enrichModelsWithMetadata(
   });
 }
 
-// Remove the circular dependency function
-// function getBudgetUsagePercentage(): number | undefined {
-//   try {
-//     const { getBudgetStatus } = require("../index");
-//     const status = getBudgetStatus();
-//     return status ? status.percentageUsed : undefined;
-//   } catch {
-//     return undefined;
-//   }
-// }
-
 /**
  * Fetch with timeout
  */

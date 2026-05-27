@@ -102,7 +102,7 @@ function commonToTarget(
           role: m.role === 'assistant' ? 'assistant' : 'user',
           content: m.content,
         })),
-        max_tokens: common.max_tokens || 1024,
+        max_tokens: common.max_tokens ?? 1024,
       };
 
       if (systemMsg) {
