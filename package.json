@@ -1,6 +1,6 @@
 {
   "name": "tokenfirewall",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Scalable, adapter-driven LLM cost enforcement middleware for Node.js with cross-provider fallback, model discovery and context intelligence",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
