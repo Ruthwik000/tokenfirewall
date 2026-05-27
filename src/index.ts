@@ -9,6 +9,7 @@ import { contextRegistry } from "./introspection/contextRegistry";
 import { ModelRouter } from "./router/modelRouter";
 import { ModelRouterOptions, ApiKeyConfig } from "./router/types";
 import { apiKeyManager } from "./router/apiKeyManager";
+import { taskRegistry, TaskRegistry } from "./router/taskRegistry";
 
 let globalBudgetManager: BudgetManager | null = null;
 let globalModelRouter: ModelRouter | null = null;
@@ -227,6 +228,7 @@ export async function listModels(options: Omit<ListModelsOptions, 'budgetManager
 
 // Keep the original export for backward compatibility
 export { listAvailableModels };
+export { taskRegistry, TaskRegistry };
 
 // Export types for TypeScript users
 export type {
@@ -251,6 +253,11 @@ export type {
   RouterEvent,
   ApiKeyConfig
 } from "./router/types";
+
+export type {
+  TaskConfiguration,
+  TaskRegistration
+} from "./router/taskRegistry";
 
 /**
  * Model configuration for bulk registration
