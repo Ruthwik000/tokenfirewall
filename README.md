@@ -24,6 +24,7 @@ TokenFirewall is a production-ready middleware that automatically tracks and enf
 
 ### What's New in v2.0.0
 
+- **Cross-Provider Fallback** - Automatically switch between OpenAI, Anthropic, and Gemini when APIs fail
 - **Intelligent Router** - Automatic failover to backup models when API calls fail
 - **40+ Latest Models** - GPT-5, Claude 4.5, Gemini 3, with accurate 2026 pricing
 - **Dynamic Registration** - Add custom models and pricing at runtime
@@ -38,6 +39,7 @@ TokenFirewall is a production-ready middleware that automatically tracks and enf
 - [Core Concepts](#core-concepts)
 - [API Reference](#api-reference)
 - [Intelligent Model Router](#intelligent-model-router)
+- [Cross-Provider Fallback](#cross-provider-fallback)
 - [Dynamic Model Registration](#dynamic-model-registration)
 - [Supported Providers](#supported-providers)
 - [Examples](#examples)
@@ -343,6 +345,301 @@ disableModelRouter();
 
 ---
 
+## Cross-Provider Fallback
+
+The Cross-Provider Fallback feature enables automatic failover across different LLM providers (OpenAI, Anthropic, Gemini) when your primary provider fails. This provides maximum resilience for production applications.
+
+### How It Works
+
+When enabled, TokenFirewall automatically:
+1. **Detects failures** from your primary provider (rate limits, outages, etc.)
+2. **Transforms requests** to the backup provider's format
+3. **Sends to fallback** using the appropriate API key
+4. **Transforms responses** back to the original provider's format
+5. **Returns transparently** - your code receives the response as if the primary provider answered
+
+### Setup
+
+#### Step 1: Register API Keys
+
+Register API keys for all providers you want to use as fallbacks:
+
+```javascript
+const { registerApiKeys } = require("tokenfirewall");
+
+registerApiKeys({
+  openai: process.env.OPENAI_API_KEY,
+  anthropic: process.env.ANTHROPIC_API_KEY,
+  gemini: process.env.GEMINI_API_KEY,
+});
+```
+
+#### Step 2: Enable Cross-Provider Fallback
+
+Create a router with `enableCrossProvider: true`:
+
+```javascript
+const { createModelRouter, patchGlobalFetch } = require("tokenfirewall");
+
+createModelRouter({
+  strategy: "fallback",
+  fallbackMap: {
+    // If GPT-4o fails, try Claude, then Gemini
+    "gpt-4o": ["claude-3-5-sonnet-20241022", "gemini-2.5-pro"],
+    // If Claude fails, try GPT-4o-mini, then Gemini
+    "claude-3-5-sonnet-20241022": ["gpt-4o-mini", "gemini-2.5-pro"],
+  },
+  maxRetries: 2,
+  enableCrossProvider: true,  // Enable cross-provider fallback
+});
+
+patchGlobalFetch();
+```
+
+#### Step 3: Use Normally
+
+Your existing code works without changes:
+
+```javascript
+// Make a request to OpenAI
+const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: "Hello!" }]
+  })
+});
+
+// If OpenAI fails:
+// 1. Request is transformed to Anthropic format
+// 2. Sent to Claude with Anthropic API key
+// 3. Response is transformed back to OpenAI format
+// 4. Your code receives it as if OpenAI responded!
+```
+
+### Complete Example
+
+```javascript
+const {
+  createBudgetGuard,
+  createModelRouter,
+  registerApiKeys,
+  patchGlobalFetch,
+  isCrossProviderEnabled,
+} = require("tokenfirewall");
+
+// 1. Register API keys for multiple providers
+registerApiKeys({
+  openai: process.env.OPENAI_API_KEY,
+  anthropic: process.env.ANTHROPIC_API_KEY,
+  gemini: process.env.GEMINI_API_KEY,
+});
+
+// 2. Create budget guard (unified across all providers)
+createBudgetGuard({
+  monthlyLimit: 100,  // $100 total budget
+  mode: "block"
+});
+
+// 3. Create router with cross-provider enabled
+createModelRouter({
+  strategy: "fallback",
+  fallbackMap: {
+    "gpt-4o": ["claude-3-5-sonnet-20241022", "gemini-2.5-pro"],
+    "gpt-4o-mini": ["claude-3-5-haiku-20241022", "gemini-2.5-flash"],
+  },
+  maxRetries: 2,
+  enableCrossProvider: true,
+});
+
+// 4. Patch global fetch
+patchGlobalFetch();
+
+// 5. Verify cross-provider is enabled
+console.log("Cross-provider enabled:", isCrossProviderEnabled()); // true
+
+// 6. Use any LLM API - fallback is automatic!
+const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: "What is the capital of France?" }]
+  })
+});
+
+const data = await response.json();
+console.log(data.choices[0].message.content);
+// Response format is always OpenAI-compatible, regardless of which provider actually answered!
+```
+
+### API Reference
+
+#### `registerApiKeys(keys)`
+
+Register API keys for multiple providers.
+
+**Parameters:**
+
+```typescript
+interface ApiKeyConfig {
+  openai?: string;
+  anthropic?: string;
+  gemini?: string;
+  grok?: string;
+  kimi?: string;
+  [key: string]: string | undefined;
+}
+```
+
+**Example:**
+
+```javascript
+registerApiKeys({
+  openai: "sk-...",
+  anthropic: "sk-ant-...",
+  gemini: "...",
+});
+```
+
+#### `isCrossProviderEnabled()`
+
+Check if cross-provider fallback is currently enabled.
+
+**Returns:** `boolean`
+
+**Example:**
+
+```javascript
+const enabled = isCrossProviderEnabled();
+console.log("Cross-provider enabled:", enabled);
+```
+
+#### `ModelRouterOptions.enableCrossProvider`
+
+Enable cross-provider fallback in the router.
+
+**Type:** `boolean` (default: `false`)
+
+**Example:**
+
+```javascript
+createModelRouter({
+  strategy: "fallback",
+  fallbackMap: { "gpt-4o": ["claude-3-5-sonnet-20241022"] },
+  enableCrossProvider: true,  // Enable cross-provider
+  maxRetries: 2
+});
+```
+
+### Supported Provider Combinations
+
+Cross-provider fallback works between any combination of:
+
+- **OpenAI** ↔ **Anthropic** ↔ **Gemini**
+- **OpenAI** ↔ **Grok** ↔ **Kimi**
+- **Anthropic** ↔ **Gemini** ↔ **OpenAI**
+
+All request and response transformations are handled automatically.
+
+### Request Transformations
+
+TokenFirewall automatically transforms requests between provider formats:
+
+**OpenAI → Anthropic:**
+- `messages` → `messages` (system message extracted to `system` field)
+- `max_tokens` → `max_tokens`
+- `Authorization: Bearer` → `x-api-key` header
+
+**OpenAI → Gemini:**
+- `messages` → `contents` array
+- `role: "assistant"` → `role: "model"`
+- `max_tokens` → `generationConfig.maxOutputTokens`
+- API key appended to URL
+
+**Anthropic → OpenAI:**
+- `system` field → system message in `messages`
+- `max_tokens` → `max_tokens`
+- `x-api-key` → `Authorization: Bearer`
+
+### Response Transformations
+
+Responses are automatically transformed back to the original provider's format:
+
+**Anthropic → OpenAI:**
+- `type: "message"` → `object: "chat.completion"`
+- `content[].text` → `choices[].message.content`
+- `usage.input_tokens` → `usage.prompt_tokens`
+- `usage.output_tokens` → `usage.completion_tokens`
+
+**Gemini → OpenAI:**
+- `candidates[]` → `choices[]`
+- `content.parts[].text` → `message.content`
+- `role: "model"` → `role: "assistant"`
+- `usageMetadata.promptTokenCount` → `usage.prompt_tokens`
+
+### Unified Budget Tracking
+
+All costs are tracked in a single unified budget, regardless of which provider actually handled the request:
+
+```javascript
+const { getBudgetStatus } = require("tokenfirewall");
+
+// Make requests to different providers
+await fetch(/* OpenAI request */);
+await fetch(/* Anthropic request */);
+await fetch(/* Gemini request */);
+
+// All costs tracked together
+const status = getBudgetStatus();
+console.log(`Total spent: $${status.totalSpent.toFixed(4)}`);
+console.log(`Across all providers: OpenAI, Anthropic, Gemini`);
+```
+
+### Benefits
+
+1. **Maximum Uptime** - If one provider is down, automatically use another
+2. **Rate Limit Handling** - Seamlessly switch providers when rate limited
+3. **Cost Optimization** - Fallback to cheaper providers when primary is unavailable
+4. **Zero Code Changes** - Existing code works without modifications
+5. **Transparent** - Response format always matches what your code expects
+6. **Unified Budget** - Track costs across all providers in one place
+
+### Limitations
+
+- **Streaming not supported** - Cross-provider fallback only works with non-streaming requests
+- **Function calling not yet supported** - Basic text chat completions work perfectly
+- **Vision/multimodal not yet supported** - Text-only transformations implemented
+
+### Example Scenarios
+
+**Scenario 1: OpenAI Rate Limit**
+```
+User → GPT-4o (RATE LIMITED) → Claude (SUCCESS)
+Result: User receives OpenAI-formatted response from Claude
+```
+
+**Scenario 2: Full Fallback Chain**
+```
+User → GPT-4o (FAILED) → Claude (FAILED) → Gemini (SUCCESS)
+Result: User receives OpenAI-formatted response from Gemini
+```
+
+**Scenario 3: Cost Optimization**
+```
+User → Expensive Model (UNAVAILABLE) → Cheaper Model (SUCCESS)
+Result: Lower cost, same functionality
+```
+
+---
+
 ## Dynamic Model Registration
 
 Register models with pricing and context limits at runtime.
@@ -475,6 +772,7 @@ See the [`examples/`](./examples) directory for complete, runnable examples:
 5. **[Model Discovery](./examples/5-model-discovery.js)** - Find and compare models
 6. **[Intelligent Routing](./examples/6-intelligent-routing.js)** - Automatic retry and fallback
 7. **[Dynamic Models](./examples/7-dynamic-models.js)** - Register models at runtime
+8. **[Cross-Provider Fallback](./examples/8-cross-provider-fallback.js)** - Automatic failover across providers
 
 ---
 

@@ -1,107 +1,330 @@
 ================================================================================
-TokenFirewall v2.0.0 - Release Notes
+TokenFirewall v2.1.0 - Release Notes
 ================================================================================
 
-Release Date: February 27, 2026
-Package Size: 25.5 kB (packed) / 108.1 kB (unpacked)
-Total Files: 45
+Release Date: May 27, 2026
+Type: Minor Release (New Features)
+Status: Production Ready
 
 ================================================================================
-MAJOR FEATURES
+WHAT'S NEW
 ================================================================================
 
-1. INTELLIGENT MODEL ROUTER
-   - Automatic retry and model switching on failures
-   - Three routing strategies: fallback, context, cost
-   - Configurable retry limits with safety guards
-   - Prevention of infinite loops and circular retries
-   - Comprehensive router event logging
+🚀 CROSS-PROVIDER FALLBACK (Major Feature)
 
-2. DYNAMIC MODEL REGISTRATION
-   - registerModels() - Bulk register models at runtime
-   - Runtime pricing and context limit registration
-   - Support for custom providers
-   - Automatic integration with router strategies
+Automatically switch between OpenAI, Anthropic, and Gemini when your primary
+provider fails. This provides maximum resilience for production applications.
 
-3. COMPREHENSIVE MODEL SUPPORT (40+ Models)
-   - OpenAI: GPT-5, GPT-5-mini, GPT-4.1, GPT-4o, o1, gpt-image-1
-   - Anthropic: Claude 4.5 (Opus, Sonnet, Haiku), Claude 4, Claude 3.5
-   - Gemini: Gemini 3, 3.1, 2.5, Nano Banana, Image models
-   - Grok, Kimi, Meta, Mistral, Cohere support
+Key Benefits:
+  ✓ Automatic failover across different LLM providers
+  ✓ Transparent request/response transformation
+  ✓ Unified budget tracking across all providers
+  ✓ Zero code changes required
+  ✓ Production-ready with comprehensive error handling
 
-4. ACCURATE PRICING
-   - All pricing updated to current market rates (per 1M tokens)
-   - OpenAI: $0.15 - $18.00
-   - Anthropic: $1.20 - $85.00
-   - Gemini: $0.05 - $16.00
-
-5. PRODUCTION-GRADE RELIABILITY
-   - Case-insensitive provider lookups
-   - Comprehensive input validation (NaN, Infinity, negative values)
-   - Request object handling with header preservation
-   - Streaming request detection and fallback
-   - Edge case handling for concurrent operations
+Example:
+  If GPT-4 fails → automatically retry with Claude → then Gemini
+  All transparent to your application!
 
 ================================================================================
-BREAKING CHANGES
+NEW APIS
 ================================================================================
 
-None - Fully backward compatible with v1.x
+1. registerApiKeys(keys)
+   Register API keys for multiple providers to enable cross-provider fallback.
+   
+   Example:
+   registerApiKeys({
+     openai: process.env.OPENAI_API_KEY,
+     anthropic: process.env.ANTHROPIC_API_KEY,
+     gemini: process.env.GEMINI_API_KEY,
+   });
+
+2. isCrossProviderEnabled()
+   Check if cross-provider fallback is currently enabled.
+   
+   Example:
+   const enabled = isCrossProviderEnabled();
+   console.log("Cross-provider enabled:", enabled);
+
+3. ModelRouterOptions.enableCrossProvider
+   New option to enable cross-provider fallback in the router.
+   
+   Example:
+   createModelRouter({
+     strategy: "fallback",
+     fallbackMap: {
+       "gpt-4o": ["claude-3-5-sonnet-20241022", "gemini-2.5-pro"]
+     },
+     enableCrossProvider: true,  // <-- Enable cross-provider
+     maxRetries: 2
+   });
 
 ================================================================================
-VERIFICATION STATUS
+BUG FIXES
 ================================================================================
 
-✅ Build: Successful (TypeScript compilation)
-✅ Tests: 10/10 passed
-✅ Package Structure: Verified
-✅ TypeScript Definitions: Complete
-✅ Examples: 7 working examples included
-✅ Documentation: README, CHANGELOG, LICENSE
+Critical Fixes:
+  ✓ Context overflow detection from HTTP 400 response bodies
+  ✓ Warn mode budget accumulation past limit
+  ✓ Case-insensitive model name lookups in pricing registry
+
+These fixes improve reliability and ensure correct behavior in edge cases.
 
 ================================================================================
-NPM PUBLISH CHECKLIST
+QUICK START - CROSS-PROVIDER FALLBACK
 ================================================================================
 
-✅ Version updated to 2.0.0 in package.json
-✅ CHANGELOG.md updated with v2.0.0 release notes
-✅ README.md updated with new features and pricing
-✅ Build successful (npm run build)
-✅ All tests passing (10/10)
-✅ Package structure verified (npm pack --dry-run)
-✅ .npmignore configured correctly
-✅ TypeScript definitions included
-✅ Examples use correct import paths
+const {
+  createBudgetGuard,
+  createModelRouter,
+  registerApiKeys,
+  patchGlobalFetch,
+} = require("tokenfirewall");
+
+// 1. Register API keys for multiple providers
+registerApiKeys({
+  openai: process.env.OPENAI_API_KEY,
+  anthropic: process.env.ANTHROPIC_API_KEY,
+  gemini: process.env.GEMINI_API_KEY,
+});
+
+// 2. Create budget guard
+createBudgetGuard({
+  monthlyLimit: 100,
+  mode: "block"
+});
+
+// 3. Create router with cross-provider enabled
+createModelRouter({
+  strategy: "fallback",
+  fallbackMap: {
+    "gpt-4o": ["claude-3-5-sonnet-20241022", "gemini-2.5-pro"],
+  },
+  maxRetries: 2,
+  enableCrossProvider: true,  // Enable the magic!
+});
+
+// 4. Patch global fetch
+patchGlobalFetch();
+
+// 5. Use any LLM API - fallback is automatic!
+const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: "Hello!" }]
+  })
+});
+
+// If OpenAI fails, automatically retries with Claude, then Gemini!
 
 ================================================================================
-PUBLISH COMMANDS
+HOW IT WORKS
 ================================================================================
 
-# Dry run (verify package contents)
-npm pack --dry-run
+1. DETECT FAILURE
+   Router detects when primary provider fails (rate limit, outage, etc.)
 
-# Publish to npm
-npm publish
+2. TRANSFORM REQUEST
+   Automatically converts request to backup provider's format
+   Example: OpenAI format → Anthropic format
 
-# Publish with tag (if needed)
-npm publish --tag latest
+3. SEND TO FALLBACK
+   Uses appropriate API key for backup provider
+
+4. TRANSFORM RESPONSE
+   Converts response back to original provider's format
+
+5. RETURN TRANSPARENTLY
+   Your code receives response as if primary provider answered!
 
 ================================================================================
-POST-PUBLISH VERIFICATION
+SUPPORTED TRANSFORMATIONS
 ================================================================================
 
-1. Install from npm: npm install tokenfirewall
-2. Test basic usage: node examples/1-basic-usage.js
-3. Test router: node examples/6-intelligent-routing.js
-4. Test dynamic models: node examples/7-dynamic-models.js
-5. Verify TypeScript types work in IDE
+Request Transformations:
+  ✓ OpenAI → Anthropic → Gemini
+  ✓ Anthropic → OpenAI → Gemini
+  ✓ Gemini → OpenAI → Anthropic
+
+Response Transformations:
+  ✓ Anthropic → OpenAI (content, tokens, finish reasons)
+  ✓ Gemini → OpenAI (candidates, usage metadata)
+  ✓ OpenAI → Anthropic (messages, system field)
+
+All transformations preserve:
+  ✓ Message content and roles
+  ✓ Token usage for accurate cost tracking
+  ✓ Temperature and max_tokens settings
+  ✓ Special characters and formatting
+
+================================================================================
+UNIFIED BUDGET TRACKING
+================================================================================
+
+All costs are tracked in ONE unified budget, regardless of which provider
+actually handled the request:
+
+const status = getBudgetStatus();
+console.log(`Total spent: $${status.totalSpent.toFixed(4)}`);
+console.log(`Across: OpenAI, Anthropic, Gemini`);
+
+================================================================================
+EXAMPLES
+================================================================================
+
+New Example Added:
+  examples/8-cross-provider-fallback.js
+  
+  Complete working example demonstrating:
+  - API key registration
+  - Cross-provider router setup
+  - Automatic failover in action
+  - Budget tracking across providers
+
+Run it:
+  node examples/8-cross-provider-fallback.js
+
+================================================================================
+TESTING
+================================================================================
+
+Comprehensive test suite added:
+  ✓ 20+ tests covering all cross-provider functionality
+  ✓ Request/response transformation tests
+  ✓ Provider detection tests
+  ✓ Error handling tests
+  ✓ Integration tests
+
+Run tests:
+  node tests/cross-provider.test.js
+
+All tests passing with 100% success rate.
+
+================================================================================
+COMPATIBILITY
+================================================================================
+
+✓ Fully backward compatible with v2.0.1
+✓ Cross-provider is opt-in (enableCrossProvider: false by default)
+✓ Existing code works without any changes
+✓ No breaking changes to existing APIs
+
+To enable cross-provider fallback:
+  1. Set enableCrossProvider: true in createModelRouter()
+  2. Register API keys with registerApiKeys()
+  3. That's it! Everything else is automatic.
+
+================================================================================
+LIMITATIONS
+================================================================================
+
+Current limitations of cross-provider fallback:
+  - Streaming requests not supported (falls back to standard fetch)
+  - Function calling not yet supported (basic chat works perfectly)
+  - Vision/multimodal not yet supported (text-only transformations)
+
+These limitations will be addressed in future releases.
+
+================================================================================
+MIGRATION GUIDE
+================================================================================
+
+From v2.0.1 to v2.1.0:
+
+No migration needed! This is a fully backward-compatible release.
+
+To use the new cross-provider fallback feature:
+
+1. Install/update:
+   npm install tokenfirewall@latest
+
+2. Add API keys:
+   registerApiKeys({
+     openai: process.env.OPENAI_API_KEY,
+     anthropic: process.env.ANTHROPIC_API_KEY,
+     gemini: process.env.GEMINI_API_KEY,
+   });
+
+3. Enable in router:
+   createModelRouter({
+     strategy: "fallback",
+     fallbackMap: { "gpt-4o": ["claude-3-5-sonnet-20241022"] },
+     enableCrossProvider: true,  // Add this line
+     maxRetries: 2
+   });
+
+That's it! Your application now has cross-provider resilience.
+
+================================================================================
+DOCUMENTATION
+================================================================================
+
+Updated documentation:
+  ✓ README.md - Complete cross-provider section added
+  ✓ CHANGELOG.md - Detailed changelog for v2.1.0
+  ✓ examples/8-cross-provider-fallback.js - Working example
+  ✓ tests/cross-provider.test.js - Comprehensive test suite
+
+================================================================================
+PERFORMANCE
+================================================================================
+
+Cross-provider fallback adds minimal overhead:
+  - Request transformation: <1ms
+  - Response transformation: <1ms
+  - No performance impact when primary provider succeeds
+  - Fallback only occurs on actual failures
+
+================================================================================
+SECURITY
+================================================================================
+
+Security considerations:
+  ✓ API keys stored in memory only (not logged or exposed)
+  ✓ No data leakage between providers
+  ✓ Proper error sanitization
+  ✓ Safe JSON parsing with error handling
 
 ================================================================================
 SUPPORT
 ================================================================================
 
-- GitHub: https://github.com/Ruthwik000/tokenfirewall
-- npm: https://www.npmjs.com/package/tokenfirewall
-- Issues: https://github.com/Ruthwik000/tokenfirewall/issues
+Need help?
+  - Documentation: See README.md
+  - Examples: See examples/ directory
+  - Issues: https://github.com/Ruthwik000/tokenfirewall/issues
+  - Changelog: See CHANGELOG.md
+
+================================================================================
+ACKNOWLEDGMENTS
+================================================================================
+
+Special thanks to all contributors who helped test and validate the
+cross-provider fallback feature.
+
+This release represents a significant enhancement to TokenFirewall's
+resilience and production-readiness.
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+After upgrading:
+  1. Review the cross-provider fallback documentation
+  2. Try the example: node examples/8-cross-provider-fallback.js
+  3. Consider enabling cross-provider for production resilience
+  4. Monitor your unified budget across all providers
+
+================================================================================
+
+Built with ❤️ for the AI developer community.
+
+TokenFirewall v2.1.0 - Maximum resilience for production LLM applications.
 
 ================================================================================

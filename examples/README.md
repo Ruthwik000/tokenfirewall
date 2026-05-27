@@ -133,6 +133,25 @@ node examples/7-dynamic-models.js
 
 ---
 
+### 8. Cross-Provider Fallback (`8-cross-provider-fallback.js`)
+**What it shows:**
+- Automatic failover across different LLM providers (OpenAI, Anthropic, Gemini)
+- Request/response transformation between provider formats
+- Unified budget tracking across all providers
+- Transparent fallback - your code receives responses as if primary provider answered
+
+**Best for:** Production resilience, handling provider outages, rate limit management
+
+**Run:**
+```bash
+node examples/8-cross-provider-fallback.js
+```
+
+**Prerequisites:**
+- Set environment variables: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY
+
+---
+
 ## Common Patterns
 
 ### Pattern 1: Block Mode (Strict Budget)

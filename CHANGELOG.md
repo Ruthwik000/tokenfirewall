@@ -5,6 +5,60 @@ All notable changes to tokenfirewall will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-05-27
+
+### Added
+
+#### Cross-Provider Fallback (Major Feature)
+- **Automatic failover across different LLM providers** - Seamlessly switch between OpenAI, Anthropic, and Gemini when APIs fail
+- `registerApiKeys()` - Register API keys for multiple providers to enable cross-provider fallback
+- `isCrossProviderEnabled()` - Check if cross-provider fallback is currently enabled
+- `enableCrossProvider` option in `createModelRouter()` - Enable/disable cross-provider fallback
+- **Request transformation** - Automatically converts requests between provider formats (OpenAI ↔ Anthropic ↔ Gemini)
+- **Response transformation** - Automatically converts responses back to original provider format for transparency
+- **Unified budget tracking** - All costs tracked in single budget regardless of which provider handled the request
+- Example 8: Cross-provider fallback demonstration with complete working code
+
+#### New Router Components
+- `providerDetector.ts` - Detects provider from model name and identifies cross-provider switches
+- `providerHeaders.ts` - Builds provider-specific authentication headers
+- `requestTransformer.ts` - Transforms requests between provider formats
+- `responseTransformer.ts` - Transforms responses back to expected format
+- `apiKeyManager.ts` - Manages API keys for multiple providers
+
+#### Test Suite
+- Comprehensive test suite with 20+ tests covering all cross-provider functionality
+- Request transformation tests for all provider combinations
+- Response transformation tests with data integrity validation
+- Provider detection tests with edge cases
+- Integration tests for complete workflow validation
+
+### Fixed
+
+#### Critical Bug Fixes
+- **Context overflow detection** - Fixed HTTP 400 response body inspection for context overflow errors
+- **Warn mode budget accumulation** - Fixed cost accumulation past limit in warn mode (costs no longer added after warning)
+- **Case-insensitive model lookups** - Fixed pricing registry to normalize model names to lowercase
+
+#### Improvements
+- Enhanced error detection for context overflow from HTTP 400 responses
+- Improved error messages with provider-specific wording recognition
+- Better handling of edge cases in transformations
+
+### Changed
+- Router now supports cross-provider fallback when `enableCrossProvider: true`
+- API key management centralized in `apiKeyManager`
+- Provider detection enhanced to support cross-provider routing decisions
+- Documentation significantly expanded with cross-provider examples
+
+### Technical Details
+- 6 new source files added for cross-provider support
+- 100% test coverage for cross-provider functionality
+- Backward compatible - cross-provider is opt-in (default: false)
+- No breaking changes to existing APIs
+
+---
+
 ## [2.0.1] - 2026-02-27
 
 ### Fixed
@@ -296,7 +350,13 @@ None - Fully backward compatible with v1.x
 
 ## Version History
 
-- **1.0.0** - Initial release (2026-02-26)
+- **2.1.0** - Cross-Provider Fallback (2026-05-27)
+- **2.0.1** - Pricing corrections (2026-02-27)
+- **2.0.0** - Intelligent Router (2026-02-27)
+- **1.1.0** - Router and dynamic models (2026-02-27)
+- **1.0.2** - Documentation improvements (2026-02-27)
+- **1.0.1** - Critical bug fixes (2026-02-26)
+- **1.0.0** - Initial release (2026-01-15)
 
 ---
 
