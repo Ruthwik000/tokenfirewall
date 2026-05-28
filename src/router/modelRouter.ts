@@ -2,11 +2,14 @@ import {
   ModelRouterOptions,
   FailureContext,
   RoutingDecision,
-  RoutingStrategy
+  RoutingStrategy,
+  TaskClassificationRule
 } from "./types";
 import { errorDetector } from "./errorDetector";
 import { fallbackStrategy, contextStrategy, costStrategy } from "./routingStrategies";
 import { apiKeyManager } from "./apiKeyManager";
+import { detectProvider } from "./providerDetector";
+import { TaskClassifier } from "./taskClassifier";
 
 /**
  * Intelligent Model Router
@@ -17,12 +20,26 @@ export class ModelRouter {
   private fallbackMap: Record<string, string[]>;
   private maxRetries: number;
   private crossProviderEnabled: boolean;
+  private taskClassifier: TaskClassifier | null;
+  private taskClassification?: Record<string, TaskClassificationRule>;
+  private confidenceThreshold: number;
+  private defaultModel?: string;
 
   constructor(options: ModelRouterOptions) {
     this.strategy = options.strategy;
     this.fallbackMap = options.fallbackMap || {};
     this.maxRetries = options.maxRetries ?? 1;
     this.crossProviderEnabled = options.enableCrossProvider ?? false;
+    this.taskClassification = options.taskClassification;
+    this.confidenceThreshold = options.confidenceThreshold ?? 0.7;
+    this.defaultModel = options.defaultModel;
+    this.taskClassifier =
+      options.strategy === "smart"
+        ? new TaskClassifier(
+            options.taskClassification,
+            options.modelOverrides
+          )
+        : null;
 
     // Register API keys if provided
     if (options.apiKeys) {
@@ -44,6 +61,25 @@ export class ModelRouter {
       console.warn(
         "TokenFirewall Router: maxRetries > 5 may cause excessive API calls"
       );
+    }
+
+    if (this.confidenceThreshold < 0 || this.confidenceThreshold > 1) {
+      throw new Error(
+        "TokenFirewall Router: confidenceThreshold must be between 0 and 1"
+      );
+    }
+
+    if (
+      this.defaultModel !== undefined &&
+      (typeof this.defaultModel !== "string" || this.defaultModel.trim() === "")
+    ) {
+      throw new Error(
+        "TokenFirewall Router: defaultModel must be a non-empty string when provided"
+      );
+    }
+
+    if (this.strategy === "smart") {
+      this.validateTaskClassification();
     }
 
     if (this.strategy === "fallback") {
@@ -137,6 +173,9 @@ export class ModelRouter {
       case "cost":
         return costStrategy(context, failureType as any);
 
+      case "smart":
+        return this.smartStrategy(context, failureType);
+
       default:
         throw new Error(
           `TokenFirewall Router: Unknown strategy "${this.strategy}"`
@@ -163,5 +202,67 @@ export class ModelRouter {
    */
   public isCrossProviderEnabled(): boolean {
     return this.crossProviderEnabled;
+  }
+
+  /**
+   * Validate custom smart-routing rules.
+   */
+  private validateTaskClassification(): void {
+    if (!this.taskClassification) {
+      return;
+    }
+
+    for (const [taskType, rule] of Object.entries(this.taskClassification)) {
+      if (!rule || typeof rule !== "object") {
+        throw new Error(
+          `TokenFirewall Router: smart task "${taskType}" must be an object`
+        );
+      }
+    }
+  }
+
+  /**
+   * Task-aware model selection for smart routing.
+   */
+  private smartStrategy(
+    context: FailureContext,
+    failureType: string
+  ): RoutingDecision {
+    const classification = this.taskClassifier?.classify(context.requestBody);
+    const selectedModel =
+      classification && classification.confidence >= this.confidenceThreshold
+        ? classification.selectedModel
+        : this.defaultModel;
+
+    if (!selectedModel) {
+      const confidence = classification
+        ? ` (confidence ${classification.confidence.toFixed(2)})`
+        : "";
+      return {
+        retry: false,
+        reason: `Smart strategy could not classify request above threshold${confidence}`
+      };
+    }
+
+    const selectedProvider = detectProvider(selectedModel);
+    if (
+      selectedProvider &&
+      selectedProvider !== context.provider &&
+      !this.crossProviderEnabled
+    ) {
+      return {
+        retry: false,
+        reason:
+          `Smart strategy selected ${selectedModel}, but cross-provider routing is disabled`
+      };
+    }
+
+    return {
+      retry: true,
+      nextModel: selectedModel,
+      reason: classification
+        ? `${classification.reason} after ${failureType}`
+        : `Using default smart-routing model after ${failureType}`
+    };
   }
 }

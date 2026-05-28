@@ -283,8 +283,12 @@ Creates and configures an intelligent model router.
 
 ```typescript
 interface ModelRouterOptions {
-  strategy: "fallback" | "context" | "cost";  // Routing strategy
+  strategy: "fallback" | "context" | "cost" | "smart";  // Routing strategy
   fallbackMap?: Record<string, string[]>;     // Fallback model map
+  taskClassification?: Record<string, TaskClassificationRule>;
+  modelOverrides?: Record<string, string>;
+  confidenceThreshold?: number;               // Smart routing threshold (default: 0.7)
+  defaultModel?: string;                       // Smart routing fallback model
   maxRetries?: number;                        // Max retry attempts (default: 1)
 }
 ```
@@ -323,6 +327,11 @@ patchGlobalFetch();
 **3. Cost Strategy** - Switches to cheaper model
 - Selects cheaper model from same provider
 - Best for: Cost optimization, rate limit handling
+
+**4. Smart Strategy** - Selects a model from task classification
+- Detects task intent from prompt/message content
+- Supports custom task rules, model overrides, confidence threshold, and default model
+- Best for: Task-aware model quality and cost optimization
 
 ### Error Detection
 

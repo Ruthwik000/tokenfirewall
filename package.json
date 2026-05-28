@@ -6,6 +6,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && npm run test:smart",
+    "test:smart": "node tests/smart-router.test.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
