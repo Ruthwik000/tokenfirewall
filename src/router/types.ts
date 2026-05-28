@@ -5,7 +5,7 @@
 /**
  * Routing strategy types
  */
-export type RoutingStrategy = "fallback" | "context" | "cost";
+export type RoutingStrategy = "fallback" | "context" | "cost" | "smart";
 
 /**
  * Failure types detected by error detector
@@ -43,6 +43,12 @@ export interface ModelRouterOptions {
   apiKeys?: ApiKeyConfig;
   /** Enable cross-provider fallback (default: false) */
   enableCrossProvider?: boolean;
+  /** Custom task classification config for smart strategy */
+  taskClassification?: any;
+  /** Confidence threshold for smart strategy */
+  confidenceThreshold?: number;
+  /** Default model for smart strategy if no match found */
+  defaultModel?: string;
 }
 
 /**
