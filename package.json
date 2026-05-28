@@ -6,6 +6,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && npm run test:qa && npm run test:cross-provider",
+    "test:qa": "node tests/final-qa.test.js",
+    "test:cross-provider": "node tests/cross-provider.test.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
