@@ -9,6 +9,14 @@ import { contextRegistry } from "./introspection/contextRegistry";
 import { ModelRouter } from "./router/modelRouter";
 import { ModelRouterOptions, ApiKeyConfig } from "./router/types";
 import { apiKeyManager } from "./router/apiKeyManager";
+export {
+  detectByPatterns,
+  DEFAULT_PATTERN_TASKS,
+  PatternDefinition,
+  PatternDetectionResult,
+  PatternDetectorOptions,
+  PatternTaskType
+} from "./router/patternDetector";
 
 let globalBudgetManager: BudgetManager | null = null;
 let globalModelRouter: ModelRouter | null = null;
