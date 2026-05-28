@@ -9,6 +9,16 @@ import { contextRegistry } from "./introspection/contextRegistry";
 import { ModelRouter } from "./router/modelRouter";
 import { ModelRouterOptions, ApiKeyConfig } from "./router/types";
 import { apiKeyManager } from "./router/apiKeyManager";
+export {
+  analyzeContext,
+  DEFAULT_CONTEXT_TASKS,
+  ContextAnalysisResult,
+  ContextAnalyzerOptions,
+  ContextMessage,
+  ContextSignal,
+  ContextTaskDefinition,
+  ContextTaskType
+} from "./router/contextAnalyzer";
 
 let globalBudgetManager: BudgetManager | null = null;
 let globalModelRouter: ModelRouter | null = null;
