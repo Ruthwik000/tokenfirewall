@@ -1,0 +1,27 @@
+name: TypeScript Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Verify declaration output
+        run: |
+          test -s dist/index.d.ts
+          if find dist -name "*.d.ts" -type f -empty -print -quit | grep -q .; then
+            echo "Empty declaration file found"
+            exit 1
+          fi
