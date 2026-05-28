@@ -252,6 +252,17 @@ export type {
   ApiKeyConfig
 } from "./router/types";
 
+export type {
+  TaskClassificationConfig,
+  TaskDetection
+} from "./router/smartRouter";
+
+export {
+  defaultTaskClassification,
+  classifyTask,
+  extractPrompt
+} from "./router/smartRouter";
+
 /**
  * Model configuration for bulk registration
  */
