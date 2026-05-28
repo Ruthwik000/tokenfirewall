@@ -17,12 +17,18 @@ export class ModelRouter {
   private fallbackMap: Record<string, string[]>;
   private maxRetries: number;
   private crossProviderEnabled: boolean;
+  private taskClassification?: any;
+  private confidenceThreshold?: number;
+  private defaultModel?: string;
 
   constructor(options: ModelRouterOptions) {
     this.strategy = options.strategy;
     this.fallbackMap = options.fallbackMap || {};
     this.maxRetries = options.maxRetries ?? 1;
     this.crossProviderEnabled = options.enableCrossProvider ?? false;
+    this.taskClassification = options.taskClassification;
+    this.confidenceThreshold = options.confidenceThreshold;
+    this.defaultModel = options.defaultModel;
 
     // Register API keys if provided
     if (options.apiKeys) {
@@ -137,6 +143,9 @@ export class ModelRouter {
       case "cost":
         return costStrategy(context, failureType as any);
 
+      case "smart":
+        return { retry: false, reason: "Smart routing handles requests pre-flight, no post-failure fallback defined" };
+
       default:
         throw new Error(
           `TokenFirewall Router: Unknown strategy "${this.strategy}"`
@@ -163,5 +172,17 @@ export class ModelRouter {
    */
   public isCrossProviderEnabled(): boolean {
     return this.crossProviderEnabled;
+  }
+
+  public getTaskClassification() {
+    return this.taskClassification;
+  }
+
+  public getConfidenceThreshold() {
+    return this.confidenceThreshold;
+  }
+
+  public getDefaultModel() {
+    return this.defaultModel;
   }
 }
