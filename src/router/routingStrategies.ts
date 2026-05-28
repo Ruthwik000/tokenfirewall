@@ -1,4 +1,9 @@
-import { FailureContext, RoutingDecision, FailureType } from "./types";
+import {
+  FailureContext,
+  RoutingDecision,
+  FailureType,
+  SmartRoutingOptions
+} from "./types";
 import { contextRegistry } from "../introspection/contextRegistry";
 import { pricingRegistry } from "../core/pricingRegistry";
 
@@ -183,6 +188,185 @@ export function costStrategy(
     nextModel,
     reason: `Switching to cheaper model due to ${failureType}`
   };
+}
+
+const DEFAULT_SMART_TASK_MODELS: Record<string, string> = {
+  code: "gpt-4.1",
+  analysis: "gpt-4o",
+  math: "o1-mini",
+  summarization: "gpt-4o-mini",
+  chat: "gpt-4o-mini"
+};
+
+const SMART_TASK_KEYWORDS: Record<string, string[]> = {
+  code: [
+    "bug",
+    "code",
+    "debug",
+    "function",
+    "refactor",
+    "stack trace",
+    "typescript",
+    "unit test"
+  ],
+  analysis: [
+    "analyze",
+    "compare",
+    "evaluate",
+    "explain",
+    "insight",
+    "recommend",
+    "tradeoff"
+  ],
+  math: [
+    "calculate",
+    "equation",
+    "math",
+    "probability",
+    "proof",
+    "solve",
+    "statistics"
+  ],
+  summarization: [
+    "brief",
+    "condense",
+    "notes",
+    "recap",
+    "summarize",
+    "summary",
+    "tl;dr"
+  ],
+  chat: [
+    "chat",
+    "conversation",
+    "friendly",
+    "reply",
+    "rewrite",
+    "tone"
+  ]
+};
+
+/**
+ * Smart routing strategy
+ * Classifies the request body and selects a task-specific model.
+ */
+export function smartStrategy(
+  context: FailureContext,
+  failureType: FailureType,
+  options: SmartRoutingOptions = {}
+): RoutingDecision {
+  const confidenceThreshold = options.confidenceThreshold ?? 0.35;
+  const taskModelMap = {
+    ...DEFAULT_SMART_TASK_MODELS,
+    ...(options.taskModelMap || {})
+  };
+
+  const classification = classifyRequestTask(context.requestBody);
+
+  if (classification.confidence >= confidenceThreshold) {
+    const nextModel = taskModelMap[classification.task];
+
+    if (nextModel && !context.attemptedModels.includes(nextModel)) {
+      return {
+        retry: true,
+        nextModel,
+        reason:
+          `Smart routing selected ${classification.task} model ` +
+          `after ${failureType} (confidence ${classification.confidence.toFixed(2)})`
+      };
+    }
+  }
+
+  const fallbackModel = (options.fallbackModels || [])
+    .find(model => model !== context.originalModel && !context.attemptedModels.includes(model));
+
+  if (fallbackModel) {
+    return {
+      retry: true,
+      nextModel: fallbackModel,
+      reason:
+        `Smart routing used fallback model after ${failureType}; ` +
+        `task confidence was ${classification.confidence.toFixed(2)}`
+    };
+  }
+
+  return {
+    retry: false,
+    reason:
+      `Smart routing could not find an eligible model ` +
+      `(task=${classification.task}, confidence=${classification.confidence.toFixed(2)})`
+  };
+}
+
+function classifyRequestTask(requestBody: unknown): { task: string; confidence: number } {
+  const text = extractPromptText(requestBody).toLowerCase();
+
+  if (!text) {
+    return { task: "chat", confidence: 0 };
+  }
+
+  const scores = Object.entries(SMART_TASK_KEYWORDS)
+    .map(([task, keywords]) => ({
+      task,
+      score: keywords.reduce((total, keyword) => {
+        return total + (text.includes(keyword) ? 1 : 0);
+      }, 0),
+      keywordCount: keywords.length
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  const best = scores[0];
+  if (!best || best.score === 0) {
+    return { task: "chat", confidence: 0.2 };
+  }
+
+  return {
+    task: best.task,
+    confidence: Math.min(0.95, 0.25 + best.score / Math.max(best.keywordCount, 1))
+  };
+}
+
+function extractPromptText(value: unknown): string {
+  if (!value) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(extractPromptText).filter(Boolean).join(" ");
+  }
+
+  if (typeof value !== "object") {
+    return "";
+  }
+
+  const record = value as Record<string, unknown>;
+  const direct = [
+    record.prompt,
+    record.input,
+    record.query,
+    record.text,
+    record.content
+  ]
+    .map(extractPromptText)
+    .filter(Boolean);
+
+  const messages = Array.isArray(record.messages)
+    ? record.messages.map(message => {
+        if (typeof message === "string") {
+          return message;
+        }
+        if (message && typeof message === "object") {
+          return extractPromptText((message as Record<string, unknown>).content);
+        }
+        return "";
+      })
+    : [];
+
+  return [...direct, ...messages].filter(Boolean).join(" ");
 }
 
 /**
