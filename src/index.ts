@@ -252,6 +252,18 @@ export type {
   ApiKeyConfig
 } from "./router/types";
 
+export {
+  TaskAnalytics,
+  taskAnalytics
+} from "./router/taskAnalytics";
+
+export type {
+  TaskAnalyticsEvent,
+  TaskAnalyticsOptions,
+  TaskAnalyticsRecord,
+  TaskAnalyticsSummary
+} from "./router/taskAnalytics";
+
 /**
  * Model configuration for bulk registration
  */
