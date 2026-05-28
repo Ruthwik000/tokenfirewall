@@ -2,10 +2,16 @@ import {
   ModelRouterOptions,
   FailureContext,
   RoutingDecision,
-  RoutingStrategy
+  RoutingStrategy,
+  SmartRoutingOptions
 } from "./types";
 import { errorDetector } from "./errorDetector";
-import { fallbackStrategy, contextStrategy, costStrategy } from "./routingStrategies";
+import {
+  fallbackStrategy,
+  contextStrategy,
+  costStrategy,
+  smartStrategy
+} from "./routingStrategies";
 import { apiKeyManager } from "./apiKeyManager";
 
 /**
@@ -17,12 +23,14 @@ export class ModelRouter {
   private fallbackMap: Record<string, string[]>;
   private maxRetries: number;
   private crossProviderEnabled: boolean;
+  private smartRouting: SmartRoutingOptions;
 
   constructor(options: ModelRouterOptions) {
     this.strategy = options.strategy;
     this.fallbackMap = options.fallbackMap || {};
     this.maxRetries = options.maxRetries ?? 1;
     this.crossProviderEnabled = options.enableCrossProvider ?? false;
+    this.smartRouting = options.smartRouting || {};
 
     // Register API keys if provided
     if (options.apiKeys) {
@@ -70,6 +78,57 @@ export class ModelRouter {
             );
           }
         }
+      }
+    }
+
+    if (this.strategy === "smart") {
+      const threshold = this.smartRouting.confidenceThreshold;
+      if (
+        threshold !== undefined &&
+        (typeof threshold !== "number" || threshold < 0 || threshold > 1)
+      ) {
+        throw new Error(
+          "TokenFirewall Router: smartRouting.confidenceThreshold must be between 0 and 1"
+        );
+      }
+
+      this.validateModelMap("smartRouting.taskModelMap", this.smartRouting.taskModelMap);
+      this.validateModelList("smartRouting.fallbackModels", this.smartRouting.fallbackModels);
+    }
+  }
+
+  private validateModelMap(name: string, value?: Record<string, string>): void {
+    if (value === undefined) {
+      return;
+    }
+
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error(`TokenFirewall Router: ${name} must be an object`);
+    }
+
+    for (const [task, model] of Object.entries(value)) {
+      if (!task.trim() || typeof model !== "string" || !model.trim()) {
+        throw new Error(
+          `TokenFirewall Router: ${name} entries must map non-empty task names to model names`
+        );
+      }
+    }
+  }
+
+  private validateModelList(name: string, value?: string[]): void {
+    if (value === undefined) {
+      return;
+    }
+
+    if (!Array.isArray(value)) {
+      throw new Error(`TokenFirewall Router: ${name} must be an array`);
+    }
+
+    for (const model of value) {
+      if (typeof model !== "string" || !model.trim()) {
+        throw new Error(
+          `TokenFirewall Router: ${name} must only contain non-empty model names`
+        );
       }
     }
   }
@@ -136,6 +195,9 @@ export class ModelRouter {
 
       case "cost":
         return costStrategy(context, failureType as any);
+
+      case "smart":
+        return smartStrategy(context, failureType as any, this.smartRouting);
 
       default:
         throw new Error(
