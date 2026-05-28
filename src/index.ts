@@ -252,6 +252,22 @@ export type {
   ApiKeyConfig
 } from "./router/types";
 
+export {
+  TaskClassifier,
+  classifyTask,
+  DEFAULT_TASK_DEFINITIONS
+} from "./router/taskClassifier";
+
+export type {
+  TaskClassification,
+  TaskClassifierInput,
+  TaskClassifierMessage,
+  TaskClassifierOptions,
+  TaskDefinition,
+  TaskMatch,
+  TaskType
+} from "./router/taskClassifier";
+
 /**
  * Model configuration for bulk registration
  */
