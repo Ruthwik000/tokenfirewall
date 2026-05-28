@@ -8,6 +8,7 @@ import { apiKeyManager } from "../router/apiKeyManager";
 import { buildProviderHeaders, appendApiKeyToUrl } from "../router/providerHeaders";
 import { transformRequest } from "../router/requestTransformer";
 import { transformResponse } from "../router/responseTransformer";
+import { extractPrompt, classifyTask, defaultTaskClassification } from "../router/smartRouter";
 
 let isPatched = false;
 let budgetManager: BudgetManager | null = null;
@@ -75,7 +76,7 @@ async function standardFetch(
   // Process response and track budget BEFORE returning
   try {
     const responseData = await clonedResponse.json();
-    
+
     // Try to process with adapter registry
     const normalizedUsage = adapterRegistry.process(responseData);
 
@@ -132,13 +133,9 @@ async function fetchWithRetry(
   let currentInput = input;
 
   // Extract original model and provider from request
-  const { originalModel, provider: originalProvider } = extractModelInfo(input, init);
-  
-  if (originalModel) {
-    attemptedModels.push(originalModel);
-  }
+  let { originalModel, provider: originalProvider } = extractModelInfo(input, init);
 
-  // Parse the original request body for potential cross-provider transformations
+  // Parse the original request body for potential cross-provider transformations or smart routing
   let originalRequestBody: any = null;
   if (init?.body) {
     try {
@@ -146,6 +143,48 @@ async function fetchWithRetry(
     } catch {
       // Not JSON
     }
+  }
+
+  // --- SMART ROUTING ---
+  if (modelRouter && modelRouter.getStrategy() === 'smart') {
+    const prompt = extractPrompt(originalRequestBody, originalProvider);
+    if (prompt) {
+      const detection = classifyTask(
+        prompt,
+        modelRouter.getTaskClassification() || defaultTaskClassification,
+        modelRouter.getConfidenceThreshold() || 0.7
+      );
+
+      const newModel = detection?.selectedModel || modelRouter.getDefaultModel();
+
+      if (newModel && newModel !== originalModel) {
+        const nextProvider = detectProvider(newModel);
+        if (nextProvider && originalProvider && nextProvider !== originalProvider && modelRouter.isCrossProviderEnabled()) {
+          const updated = buildCrossProviderRequest(originalRequestBody, originalProvider, nextProvider, newModel);
+          if (updated) {
+            currentInput = updated.url;
+            currentInit = updated.init;
+            originalModel = newModel;
+            originalProvider = nextProvider;
+            if (currentInit.body) {
+              try { originalRequestBody = JSON.parse(currentInit.body as string); } catch { }
+            }
+          }
+        } else if (nextProvider === originalProvider) {
+          const updated = updateRequestModel(currentInput, currentInit, newModel, originalProvider);
+          currentInput = updated.input;
+          currentInit = updated.init;
+          originalModel = newModel;
+          if (currentInit?.body) {
+            try { originalRequestBody = JSON.parse(currentInit.body as string); } catch { }
+          }
+        }
+      }
+    }
+  }
+
+  if (originalModel) {
+    attemptedModels.push(originalModel);
   }
 
   while (retryCount <= (modelRouter?.getMaxRetries() || 0)) {
@@ -163,7 +202,7 @@ async function fetchWithRetry(
         } catch {
           // Response is not JSON or already consumed
         }
-        
+
         // Throw proper Error instance with structured data
         const errorObj = {
           status: response.status,
@@ -418,7 +457,7 @@ function extractModelInfo(
     // Extract model from request body (for non-Gemini providers)
     if (!model) {
       let body: string | null = null;
-      
+
       // Get body from init or Request object
       if (init?.body) {
         body = typeof init.body === 'string' ? init.body : null;
@@ -427,7 +466,7 @@ function extractModelInfo(
         // So we skip body parsing for Request objects without explicit init.body
         body = null;
       }
-      
+
       if (body) {
         try {
           const bodyObj = JSON.parse(body);
@@ -462,7 +501,7 @@ function updateRequestModel(
   // Update URL for Gemini (model is in URL path)
   if (provider === 'gemini') {
     const newUrl = url.replace(/\/models\/[^:]+:/, `/models/${newModel}:`);
-    
+
     // If input was a Request object, we need to create a new Request with updated URL
     if (input instanceof Request) {
       // Clone the request with new URL
