@@ -220,6 +220,43 @@ importBudgetState(savedState);
 
 ---
 
+### Token Cleanup
+
+#### `createTokenCleanupStore(options)`
+
+Creates an in-memory cleanup helper for expired token ids and revoked token deny lists. Use it when your application tracks blocked, revoked, or short-lived tokens and needs a safe periodic cleanup pass with audit counts.
+
+**Parameters:**
+
+```typescript
+interface TokenCleanupStoreOptions {
+  revokedTokenMaxAgeMs?: number; // How long revoked tokens stay in the deny list
+  onCleanup?: (result: TokenCleanupResult) => void;
+}
+```
+
+**Example:**
+
+```javascript
+const { createTokenCleanupStore } = require("tokenfirewall");
+
+const cleanupStore = createTokenCleanupStore({
+  revokedTokenMaxAgeMs: 24 * 60 * 60 * 1000,
+  onCleanup: ({ total, expired, revoked }) => {
+    console.log(`Cleaned ${total} tokens (${expired} expired, ${revoked} revoked)`);
+  }
+});
+
+cleanupStore.upsert({
+  id: "session-token-id",
+  expiresAt: Date.now() + 15 * 60 * 1000
+});
+
+cleanupStore.startAutoCleanup(5 * 60 * 1000);
+```
+
+---
+
 ### Interception
 
 #### `patchGlobalFetch()`

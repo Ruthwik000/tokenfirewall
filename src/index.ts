@@ -9,6 +9,7 @@ import { contextRegistry } from "./introspection/contextRegistry";
 import { ModelRouter } from "./router/modelRouter";
 import { ModelRouterOptions, ApiKeyConfig } from "./router/types";
 import { apiKeyManager } from "./router/apiKeyManager";
+import { createTokenCleanupStore, TokenCleanupStore } from "./core/tokenCleanupStore";
 
 let globalBudgetManager: BudgetManager | null = null;
 let globalModelRouter: ModelRouter | null = null;
@@ -193,6 +194,13 @@ export function importBudgetState(state: { totalSpent: number }): void {
 }
 
 /**
+ * Create an in-memory token cleanup store for expired and revoked token ids.
+ * Applications can pair this with their own persistence layer or run the
+ * built-in auto cleanup interval for lightweight token deny lists.
+ */
+export { createTokenCleanupStore, TokenCleanupStore };
+
+/**
  * Create and configure a model router for automatic retries and fallbacks
  * @param options - Router configuration options
  * @returns Model router instance
@@ -239,6 +247,14 @@ export type {
   ModelInfo,
   ListModelsOptions,
 } from "./core/types";
+
+export type {
+  TokenCleanupRecord,
+  TokenCleanupStoreOptions,
+  TokenCleanupOptions,
+  TokenCleanupResult,
+  TokenTimestamp,
+} from "./core/tokenCleanupStore";
 
 export type { ModelInfo as ModelInfoType, ListModelsOptions as ListModelsOptionsType } from "./introspection/modelLister";
 
