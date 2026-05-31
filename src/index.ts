@@ -249,6 +249,7 @@ export type {
   FailureContext,
   RoutingDecision,
   RouterEvent,
+  RouterCacheStats,
   ApiKeyConfig
 } from "./router/types";
 
