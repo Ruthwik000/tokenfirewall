@@ -5,6 +5,47 @@ All notable changes to tokenfirewall will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - Unreleased
+
+### Added
+
+#### Smart Model Selection
+- Added a planned Smart Model Selection release track for routing requests by task type instead of only by failure, context size, or cost.
+- Documented built-in task categories for code generation, code review, math reasoning, document analysis, creative writing, translation, simple chat, data extraction, Chinese language tasks, vision, and documentation.
+- Added guidance for task-type based model selection, including Claude-oriented code tasks, o1-oriented reasoning tasks, Gemini-oriented long-document tasks, and cost-efficient mini-model routing for simple tasks.
+- Added configuration guidance for smart routing with task classification, fallback model selection, optional analytics, and custom detector hooks.
+
+#### New APIs
+- `classifyTask(prompt, context?)` for manual task classification before routing.
+- `overrideTaskType(taskType)` for forcing the next request to use a specific task category.
+- `getTaskAnalytics(options?)` for reviewing task distribution, model usage, estimated savings, and routing accuracy.
+- Header-based overrides for request-level control, including disabling smart routing or forcing a task type for a single request.
+
+#### Documentation
+- Added `SMART-MODEL-SELECTION.md` as the primary design and usage guide for the v2.2.0 Smart Model Selection work.
+- Added migration guidance for applications already using `createModelRouter()` with fallback, context, or cost strategies.
+- Added operational notes for monitoring task analytics, tuning confidence thresholds, and handling ambiguous prompts.
+
+### Changed
+
+- The v2.2.0 routing plan extends the existing opt-in router architecture instead of replacing budget tracking, provider adapters, or cross-provider fallback.
+- Smart routing remains designed as an opt-in capability so existing `patchGlobalFetch()`, budget guard, and fallback-router integrations continue to work without code changes.
+
+### Migration Guide
+
+1. Keep existing budget protection and provider setup unchanged.
+2. Register provider API keys for every provider that smart routing may select.
+3. Enable smart routing only where task-type routing is desired.
+4. Start with the built-in task categories before adding custom detectors.
+5. Review analytics after rollout and tune task definitions or confidence thresholds based on real traffic.
+
+### Breaking Changes
+
+- No breaking changes are announced for v2.2.0 at this stage.
+- Smart Model Selection is documented as an opt-in routing layer, so existing v2.1.0 integrations should remain backward compatible.
+
+---
+
 ## [2.1.0] - 2026-05-27
 
 ### Added
