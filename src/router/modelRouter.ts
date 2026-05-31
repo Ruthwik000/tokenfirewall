@@ -2,7 +2,8 @@ import {
   ModelRouterOptions,
   FailureContext,
   RoutingDecision,
-  RoutingStrategy
+  RoutingStrategy,
+  RouterCacheStats
 } from "./types";
 import { errorDetector } from "./errorDetector";
 import { fallbackStrategy, contextStrategy, costStrategy } from "./routingStrategies";
@@ -17,12 +18,17 @@ export class ModelRouter {
   private fallbackMap: Record<string, string[]>;
   private maxRetries: number;
   private crossProviderEnabled: boolean;
+  private maxDecisionCacheSize: number;
+  private decisionCache: Map<string, RoutingDecision> = new Map();
+  private cacheHits = 0;
+  private cacheMisses = 0;
 
   constructor(options: ModelRouterOptions) {
     this.strategy = options.strategy;
     this.fallbackMap = options.fallbackMap || {};
     this.maxRetries = options.maxRetries ?? 1;
     this.crossProviderEnabled = options.enableCrossProvider ?? false;
+    this.maxDecisionCacheSize = options.decisionCacheSize ?? 128;
 
     // Register API keys if provided
     if (options.apiKeys) {
@@ -43,6 +49,15 @@ export class ModelRouter {
     if (this.maxRetries > 5) {
       console.warn(
         "TokenFirewall Router: maxRetries > 5 may cause excessive API calls"
+      );
+    }
+
+    if (
+      !Number.isInteger(this.maxDecisionCacheSize) ||
+      this.maxDecisionCacheSize < 0
+    ) {
+      throw new Error(
+        "TokenFirewall Router: decisionCacheSize must be a non-negative integer"
       );
     }
 
@@ -90,6 +105,12 @@ export class ModelRouter {
 
     // Detect failure type
     const failureType = errorDetector.detectFailureType(context.error);
+    const cacheKey = this.createDecisionCacheKey(context, failureType);
+    const cachedDecision = this.getCachedDecision(cacheKey);
+
+    if (cachedDecision) {
+      return cachedDecision;
+    }
 
     // Select routing strategy
     const decision = this.selectStrategy(context, failureType);
@@ -116,6 +137,8 @@ export class ModelRouter {
         reason: `Cannot switch back to original model ${context.originalModel}`
       };
     }
+
+    this.setCachedDecision(cacheKey, decision);
 
     return decision;
   }
@@ -163,5 +186,79 @@ export class ModelRouter {
    */
   public isCrossProviderEnabled(): boolean {
     return this.crossProviderEnabled;
+  }
+
+  /**
+   * Clear cached routing decisions and reset cache counters
+   */
+  public clearRoutingDecisionCache(): void {
+    this.decisionCache.clear();
+    this.cacheHits = 0;
+    this.cacheMisses = 0;
+  }
+
+  /**
+   * Inspect current routing decision cache usage
+   * @returns cache size, configured bound, and hit/miss counters
+   */
+  public getRoutingCacheStats(): RouterCacheStats {
+    return {
+      size: this.decisionCache.size,
+      maxSize: this.maxDecisionCacheSize,
+      hits: this.cacheHits,
+      misses: this.cacheMisses
+    };
+  }
+
+  /**
+   * Build a stable, non-sensitive cache key from routing inputs.
+   * requestBody is intentionally excluded because prompts may contain secrets.
+   */
+  private createDecisionCacheKey(
+    context: FailureContext,
+    failureType: string
+  ): string {
+    return JSON.stringify({
+      strategy: this.strategy,
+      failureType,
+      originalModel: context.originalModel,
+      provider: context.provider,
+      retryCount: context.retryCount,
+      attemptedModels: [...context.attemptedModels].sort()
+    });
+  }
+
+  private getCachedDecision(cacheKey: string): RoutingDecision | null {
+    if (this.maxDecisionCacheSize === 0) {
+      return null;
+    }
+
+    const cached = this.decisionCache.get(cacheKey);
+    if (!cached) {
+      this.cacheMisses++;
+      return null;
+    }
+
+    this.decisionCache.delete(cacheKey);
+    this.decisionCache.set(cacheKey, cached);
+    this.cacheHits++;
+    return { ...cached };
+  }
+
+  private setCachedDecision(cacheKey: string, decision: RoutingDecision): void {
+    if (this.maxDecisionCacheSize === 0) {
+      return;
+    }
+
+    if (this.decisionCache.has(cacheKey)) {
+      this.decisionCache.delete(cacheKey);
+    } else if (this.decisionCache.size >= this.maxDecisionCacheSize) {
+      const oldestKey = this.decisionCache.keys().next().value;
+      if (oldestKey) {
+        this.decisionCache.delete(oldestKey);
+      }
+    }
+
+    this.decisionCache.set(cacheKey, { ...decision });
   }
 }

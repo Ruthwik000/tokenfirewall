@@ -39,6 +39,8 @@ export interface ModelRouterOptions {
   fallbackMap?: Record<string, string[]>;
   /** Maximum number of retry attempts (default: 1) */
   maxRetries?: number;
+  /** Maximum cached routing decisions per router instance (default: 128, 0 disables cache) */
+  decisionCacheSize?: number;
   /** API keys for cross-provider fallback */
   apiKeys?: ApiKeyConfig;
   /** Enable cross-provider fallback (default: false) */
@@ -73,6 +75,20 @@ export interface RoutingDecision {
   nextModel?: string;
   /** Reason for the decision */
   reason: string;
+}
+
+/**
+ * Runtime stats for the router decision cache
+ */
+export interface RouterCacheStats {
+  /** Number of currently cached routing decisions */
+  size: number;
+  /** Maximum decisions retained by this router */
+  maxSize: number;
+  /** Cache hits since router creation or last clear */
+  hits: number;
+  /** Cache misses since router creation or last clear */
+  misses: number;
 }
 
 /**
