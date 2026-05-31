@@ -1,0 +1,318 @@
+================================================================================
+TokenFirewall v2.2.0 - Release Notes
+================================================================================
+
+Release Type: Minor Release
+Primary Theme: Smart Model Selection
+Compatibility: Backward compatible with v2.1.x
+
+Note for maintainers:
+These notes summarize the v2.2.0 release scope documented in
+SMART-MODEL-SELECTION.md. Confirm the final implementation status before
+publishing the package to npm.
+
+================================================================================
+OVERVIEW
+================================================================================
+
+TokenFirewall v2.2.0 introduces Smart Model Selection: task-type based routing
+for production LLM applications. Instead of using one model for every prompt,
+TokenFirewall can classify the request, choose a model that fits the task, and
+keep budget tracking in the same middleware pipeline.
+
+The goal is straightforward:
+
+  - send coding work to strong code models
+  - send long-context document work to long-context models
+  - send simple chat and extraction work to lower-cost models
+  - keep fallback, budget protection, and provider handling centralized
+
+This release builds on the v2.1.0 cross-provider fallback work. Smart routing is
+designed to work with multiple providers while preserving the existing budget
+guard and fetch interception APIs.
+
+================================================================================
+HIGHLIGHTS
+================================================================================
+
+1. Smart routing strategy
+
+   New router configuration uses a smart strategy that selects models by task
+   type instead of relying only on fixed fallback chains, context overflow, or
+   cost-based retry rules.
+
+   Example:
+
+     createModelRouter({
+       strategy: "smart",
+       confidenceThreshold: 0.75,
+       defaultModel: "gpt-4o-mini",
+       enableCrossProvider: true
+     });
+
+2. Built-in task types
+
+   v2.2.0 documents twelve built-in task categories:
+
+     - code generation
+     - code review and refactoring
+     - math and calculations
+     - complex reasoning and logic
+     - document analysis and summarization
+     - creative writing
+     - translation
+     - simple chat and conversation
+     - data extraction and parsing
+     - Chinese language tasks
+     - multimodal or vision prompts
+     - embedding and retrieval tasks
+
+3. Classification signals
+
+   Smart selection can combine several lightweight signals:
+
+     - keyword analysis
+     - regular-expression pattern matching
+     - language detection
+     - request context
+     - custom detector functions
+
+   These signals help route common requests without requiring application teams
+   to manually pick a model for every call.
+
+4. Manual classification and overrides
+
+   Applications can inspect or override routing decisions when they already know
+   the intended task type.
+
+   Example:
+
+     const classification = await classifyTask(
+       "Write a Python function to validate email addresses"
+     );
+
+     overrideTaskType("code_generation");
+
+5. Analytics and monitoring hooks
+
+   The release notes and feature documentation describe analytics for reviewing
+   task distribution, model usage, average request cost, and estimated savings.
+   This gives teams a feedback loop for tuning routing rules after deployment.
+
+================================================================================
+NEW CONFIGURATION
+================================================================================
+
+Smart router configuration:
+
+  createModelRouter({
+    strategy: "smart",
+    taskClassification: {
+      code_generation: {
+        model: "claude-3-5-sonnet-20241022",
+        reason: "Claude excels at code generation",
+        keywords: ["write code", "create function", "implement"],
+        patterns: [/write.*code/i, /create.*function/i],
+        priority: 10
+      },
+      simple_chat: {
+        model: "gpt-4o-mini",
+        reason: "Simple chat works well on a low-cost model",
+        keywords: ["hello", "hi", "thanks"],
+        patterns: [/^(hi|hello|hey)/i],
+        priority: 3
+      }
+    },
+    confidenceThreshold: 0.75,
+    defaultModel: "gpt-4o-mini",
+    enableCrossProvider: true,
+    enableAnalytics: true
+  });
+
+Configuration fields:
+
+  strategy
+    Use "smart" for task-type based routing.
+
+  taskClassification
+    Optional map of task definitions. Each definition can provide a preferred
+    model, reason, keywords, patterns, and priority.
+
+  modelOverrides
+    Optional map for replacing the default model for selected task types.
+
+  confidenceThreshold
+    Minimum confidence needed before smart routing uses a classified task.
+
+  defaultModel
+    Model used when no classification reaches the confidence threshold.
+
+  enableCrossProvider
+    Allows smart routing to choose models across providers when API keys are
+    registered.
+
+  enableAnalytics
+    Enables collection of task and model usage metrics.
+
+  customDetector
+    Optional function for application-specific task detection.
+
+================================================================================
+EXAMPLES
+================================================================================
+
+Basic smart routing:
+
+  const {
+    createBudgetGuard,
+    createModelRouter,
+    patchGlobalFetch,
+    registerApiKeys
+  } = require("tokenfirewall");
+
+  registerApiKeys({
+    openai: process.env.OPENAI_API_KEY,
+    anthropic: process.env.ANTHROPIC_API_KEY,
+    gemini: process.env.GEMINI_API_KEY,
+    kimi: process.env.KIMI_API_KEY
+  });
+
+  createBudgetGuard({
+    monthlyLimit: 100,
+    mode: "block"
+  });
+
+  createModelRouter({
+    strategy: "smart",
+    confidenceThreshold: 0.75,
+    defaultModel: "gpt-4o-mini",
+    enableCrossProvider: true
+  });
+
+  patchGlobalFetch();
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        { role: "user", content: "Write a TypeScript debounce helper" }
+      ]
+    })
+  });
+
+Manual override for a known task:
+
+  overrideTaskType("document_analysis");
+
+  await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        { role: "user", content: largeDocumentPrompt }
+      ]
+    })
+  });
+
+================================================================================
+UPGRADE INSTRUCTIONS
+================================================================================
+
+From v2.1.x:
+
+  1. Update the package:
+
+       npm install tokenfirewall@latest
+
+  2. Keep your existing budget guard setup:
+
+       createBudgetGuard({ monthlyLimit: 100, mode: "block" });
+
+  3. Register provider keys if smart routing should cross providers:
+
+       registerApiKeys({
+         openai: process.env.OPENAI_API_KEY,
+         anthropic: process.env.ANTHROPIC_API_KEY,
+         gemini: process.env.GEMINI_API_KEY
+       });
+
+  4. Change or add the router strategy:
+
+       createModelRouter({
+         strategy: "smart",
+         defaultModel: "gpt-4o-mini",
+         confidenceThreshold: 0.75,
+         enableCrossProvider: true
+       });
+
+  5. Run your existing integration tests and review routing logs before enabling
+     smart routing for all production traffic.
+
+================================================================================
+BACKWARD COMPATIBILITY
+================================================================================
+
+v2.2.0 is designed as a backward-compatible minor release.
+
+Existing applications can continue using:
+
+  - createBudgetGuard()
+  - patchGlobalFetch()
+  - registerPricing()
+  - registerContextLimit()
+  - registerModels()
+  - createModelRouter({ strategy: "fallback" })
+  - createModelRouter({ strategy: "context" })
+  - createModelRouter({ strategy: "cost" })
+
+Smart routing is opt-in. Existing fallback, context, and cost strategies should
+continue to work without configuration changes.
+
+================================================================================
+KNOWN LIMITATIONS
+================================================================================
+
+  - Smart routing depends on classification confidence. Teams should tune
+    thresholds and defaults for their own traffic.
+  - Provider availability still depends on registered API keys.
+  - Some advanced provider features, such as function calling or multimodal
+    payload transformation, may require provider-specific handling.
+  - Analytics should be reviewed regularly so routing decisions stay aligned
+    with quality and cost goals.
+
+================================================================================
+DOCUMENTATION
+================================================================================
+
+Primary documentation:
+
+  - SMART-MODEL-SELECTION.md
+  - README.md
+  - examples/README.md
+  - CHANGELOG.md
+
+Recommended reading order:
+
+  1. SMART-MODEL-SELECTION.md for architecture and task categories
+  2. README.md for installation and existing budget/router APIs
+  3. examples/README.md for runnable examples
+  4. CHANGELOG.md for version-by-version changes
+
+================================================================================
+SUMMARY
+================================================================================
+
+TokenFirewall v2.2.0 extends the router from failure handling into proactive
+model selection. The release gives teams a path to reduce cost, improve model
+fit, and keep routing decisions observable without replacing their existing LLM
+request flow.
+
